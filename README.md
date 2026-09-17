@@ -27,3 +27,4 @@ VITE_CONVAI_CHARACTER_ID=your_character_id_here
 ```
 
 Then open `http://localhost:5173/login` (demo login: `senior@demo.com` / `123456`).
+"# FinLens" 
