@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from config import settings
 from models.db import init_db
-from routes import assistant, auth, documents, finance, profile
+from routes import assistant, auth, documents, finance, profile, speech
 
 app = FastAPI(
     title="FinLens AI API",
@@ -40,6 +40,7 @@ app.include_router(assistant.router)
 app.include_router(documents.router)
 app.include_router(finance.router)
 app.include_router(profile.router)
+app.include_router(speech.router)
 
 
 @app.get("/api/health")
