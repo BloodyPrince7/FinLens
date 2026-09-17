@@ -74,23 +74,44 @@ async def generate_text(
         "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {"temperature": temperature, "maxOutputTokens": 2048},
     }
-    try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            response = await client.post(
-                _endpoint(model),
-                headers={"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"},
-                json=payload,
-            )
-            response.raise_for_status()
-            text = _response_text(response.json())
-            if not text:
-                raise GeminiUnavailableError("Gemini returned an empty response.")
-            return text
-    except httpx.HTTPError as exc:
-        logger.error("Gemini text generation failed: %s", exc)
-        raise GeminiUnavailableError(
-            _http_error_message(exc, "Gemini is unavailable right now. Please try again.")
-        ) from exc
+
+    models_to_try = [resolve_model(model)]
+    for m in SUPPORTED_MODELS:
+        if m not in models_to_try:
+            models_to_try.append(m)
+
+    last_exc = None
+    for target_model in models_to_try:
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                response = await client.post(
+                    _endpoint(target_model),
+                    headers={"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"},
+                    json=payload,
+                )
+                response.raise_for_status()
+                text = _response_text(response.json())
+                if not text:
+                    raise GeminiUnavailableError("Gemini returned an empty response.")
+                return text
+        except httpx.HTTPStatusError as exc:
+            last_exc = exc
+            if exc.response.status_code in (429, 500, 502, 503, 504) and target_model != models_to_try[-1]:
+                logger.warning("Model %s returned HTTP %s; trying fallback model...", target_model, exc.response.status_code)
+                continue
+            logger.error("Gemini text generation failed on %s: %s", target_model, exc)
+            raise GeminiUnavailableError(
+                _http_error_message(exc, "Gemini is unavailable right now. Please try again.")
+            ) from exc
+        except httpx.HTTPError as exc:
+            last_exc = exc
+            logger.error("Gemini text generation failed: %s", exc)
+            raise GeminiUnavailableError(
+                _http_error_message(exc, "Gemini is unavailable right now. Please try again.")
+            ) from exc
+
+    if last_exc:
+        raise GeminiUnavailableError("All available Gemini models are currently busy. Please retry in a few seconds.")
 
 
 async def generate_json(
@@ -118,21 +139,43 @@ async def generate_json(
             "responseMimeType": "application/json",
         },
     }
-    try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            response = await client.post(
-                _endpoint(model),
-                headers={"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"},
-                json=payload,
-            )
-            response.raise_for_status()
-            text = _response_text(response.json())
-            return json.loads(text)
-    except httpx.HTTPError as exc:
-        logger.error("Gemini structured generation failed: %s", exc)
-        raise GeminiUnavailableError(
-            _http_error_message(exc, "Gemini could not analyze the document right now.")
-        ) from exc
-    except (json.JSONDecodeError, GeminiUnavailableError) as exc:
-        logger.error("Gemini structured generation failed: %s", exc)
-        raise GeminiUnavailableError("Gemini could not analyze the document right now.") from exc
+
+    models_to_try = [resolve_model(model)]
+    for m in SUPPORTED_MODELS:
+        if m not in models_to_try:
+            models_to_try.append(m)
+
+    last_exc = None
+    for target_model in models_to_try:
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                response = await client.post(
+                    _endpoint(target_model),
+                    headers={"x-goog-api-key": settings.gemini_api_key, "Content-Type": "application/json"},
+                    json=payload,
+                )
+                response.raise_for_status()
+                text = _response_text(response.json())
+                return json.loads(text)
+        except httpx.HTTPStatusError as exc:
+            last_exc = exc
+            if exc.response.status_code in (429, 500, 502, 503, 504) and target_model != models_to_try[-1]:
+                logger.warning("Model %s returned HTTP %s; trying fallback model...", target_model, exc.response.status_code)
+                continue
+            logger.error("Gemini structured generation failed on %s: %s", target_model, exc)
+            raise GeminiUnavailableError(
+                _http_error_message(exc, "Gemini could not analyze the document right now.")
+            ) from exc
+        except (json.JSONDecodeError, GeminiUnavailableError) as exc:
+            last_exc = exc
+            logger.error("Gemini structured generation failed on %s: %s", target_model, exc)
+            raise GeminiUnavailableError("Gemini could not analyze the document right now.") from exc
+        except httpx.HTTPError as exc:
+            last_exc = exc
+            logger.error("Gemini structured generation failed: %s", exc)
+            raise GeminiUnavailableError(
+                _http_error_message(exc, "Gemini could not analyze the document right now.")
+            ) from exc
+
+    if last_exc:
+        raise GeminiUnavailableError("All available Gemini models are currently busy. Please retry in a few seconds.")

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
 from models.db import Document, DocumentBinary, DocumentOwner, User, get_session
-from models.schemas import DocumentOut, DocumentType, DocumentUploadResponse
+from models.schemas import DocumentOut, DocumentType, DocumentUploadResponse, HindiExplanationResponse
 from services import finance_extraction_service, pdf_service
 from services.security import get_current_user
 
@@ -171,3 +171,32 @@ async def download_document(document_id: str, user: User = Depends(get_current_u
             media_type=stored_file.content_type,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
+
+
+@router.post("/{document_id}/hindi-explanation", response_model=HindiExplanationResponse)
+async def get_document_hindi_explanation(
+    document_id: str,
+    model: Optional[str] = None,
+    user: User = Depends(get_current_user),
+):
+    """Generates an easy-to-understand Hindi explanation and spoken audio script for the document."""
+    with get_session() as session:
+        document = _owned_document(session, document_id, user.id)
+        explanation = await finance_extraction_service.explain_document_in_hindi(
+            document_type=document.document_type,
+            summary=document.summary,
+            fields=document.fields,
+            risks=document.risks,
+            extracted_text=document.extracted_text,
+            model=model,
+        )
+        return HindiExplanationResponse(
+            success=True,
+            document_id=document.id,
+            hindi_title=explanation["hindi_title"],
+            hindi_summary=explanation["hindi_summary"],
+            key_points=explanation["key_points"],
+            risks=explanation["risks"],
+            spoken_text=explanation["spoken_text"],
+        )
+

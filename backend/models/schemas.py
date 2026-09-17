@@ -88,6 +88,16 @@ class DocumentOut(BaseModel):
     extracted_text: str
 
 
+class HindiExplanationResponse(BaseModel):
+    success: bool
+    document_id: str
+    hindi_title: str
+    hindi_summary: str
+    key_points: list[str]
+    risks: list[str]
+    spoken_text: str
+
+
 class EmiRequest(BaseModel):
     principal: float = Field(gt=0)
     annual_rate_percent: float = Field(ge=0)

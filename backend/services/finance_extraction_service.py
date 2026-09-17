@@ -140,3 +140,122 @@ async def extract_financial_data(
     except (gemini_service.GeminiUnavailableError, ValueError, TypeError) as exc:
         logger.warning("Gemini extraction unavailable; using deterministic fallback: %s", exc)
         return _fallback_result(extracted_text, document_type)
+
+
+def _build_hindi_explanation_prompt(
+    document_type: str,
+    summary: str,
+    fields: dict,
+    risks: list[str],
+    extracted_text: str = "",
+) -> str:
+    fields_formatted = "\n".join(f"- {k.replace('_', ' ').title()}: {v}" for k, v in fields.items() if v)
+    risks_formatted = "\n".join(f"- {r}" for r in risks) if risks else "None"
+    text_snippet = extracted_text[:3000] if extracted_text else "No additional raw text."
+
+    return f"""You are an expert Indian financial adviser and document intelligence assistant.
+Your job is to explain this financial document to an everyday Indian citizen in clear, easy-to-understand Hindi (Devanagari script).
+
+Document Type: {document_type}
+Document Summary: {summary}
+Extracted Fields:
+{fields_formatted}
+
+Flagged Clauses/Risks:
+{risks_formatted}
+
+Document Excerpt:
+{text_snippet}
+
+Requirements:
+1. "hindi_title": A brief, accurate title in Hindi (e.g. "पर्सनल लोन एग्रीमेंट का विश्लेषण" or "इनकम टैक्स रिटर्न का विवरण").
+2. "hindi_summary": 2-3 sentences in simple, conversational Hindi giving an overall explanation of what this document is, who issued it, and the key takeaway.
+3. "key_points": A list of 4 to 6 concise bullet points in Devanagari Hindi outlining the most vital numbers and facts (e.g. कुल ऋण राशि, ब्याज दर, मासिक किश्त EMI, कुल अवधि, आदि).
+4. "risks": A list of important cautions, penalties, hidden charges, or rules in Devanagari Hindi (e.g. देरी से भुगतान पर पेनल्टी, फोरक्लोज़र शुल्क, आदि). If there are no specific risks, provide 1 or 2 general safety guidelines in Hindi.
+5. "spoken_text": A natural, conversational Hindi voice script specifically tailored for Text-to-Speech (TTS) readout.
+   - Use natural spoken Devanagari Hindi without confusing jargon.
+   - When reading figures, use words like "5 लाख रुपये", "16 हजार 217 रुपये", "10.5 प्रतिशत प्रति वर्ष".
+   - Keep it engaging, clear, concise (around 3-5 sentences), and polite.
+   - Do NOT use markdown symbols, asterisks, bullet dashes, or brackets in "spoken_text".
+
+Respond with ONLY a valid JSON object matching this schema:
+{{
+  "hindi_title": "...",
+  "hindi_summary": "...",
+  "key_points": ["...", "..."],
+  "risks": ["...", "..."],
+  "spoken_text": "..."
+}}
+"""
+
+
+def _fallback_hindi_explanation(
+    document_type: str,
+    summary: str,
+    fields: dict,
+    risks: list[str],
+) -> dict:
+    doc_type_names = {
+        "loan_agreement": "ऋण (लोन) समझौता",
+        "insurance_policy": "बीमा पॉलिसी",
+        "bank_statement": "बैंक खाता विवरण",
+        "salary_slip": "वेतन पर्ची (Salary Slip)",
+        "itr": "आयकर रिटर्न (ITR)",
+        "investment_statement": "निवेश विवरण",
+        "credit_report": "क्रेडिट रिपोर्ट",
+    }
+    name = doc_type_names.get(document_type, "वित्तीय दस्तावेज़")
+    points = []
+    for k, v in (fields or {}).items():
+        if v:
+            clean_k = k.replace('_', ' ')
+            points.append(f"{clean_k}: {v}")
+    if not points:
+        points = ["दस्तावेज़ की जानकारी सफलतापूर्वक अपलोड की गई है।"]
+
+    hindi_summary = f"यह आपका {name} है। {summary if summary else 'दस्तावेज़ की मुख्य जानकारी प्राप्त कर ली गई है।'}"
+    spoken_text = f"यह आपका {name} है। {summary if summary else ''} कृपया मुख्य विवरण और वित्तीय शर्तों की जांच कर लें।"
+
+    return {
+        "hindi_title": f"{name} का विवरण",
+        "hindi_summary": hindi_summary,
+        "key_points": points,
+        "risks": risks if risks else ["कृपया सभी नियमों और शर्तों को ध्यानपूर्वक पढ़ें।"],
+        "spoken_text": spoken_text.replace("*", "").replace("#", ""),
+    }
+
+
+async def explain_document_in_hindi(
+    document_type: str,
+    summary: str = "",
+    fields: dict | None = None,
+    risks: list[str] | None = None,
+    extracted_text: str = "",
+    *,
+    model: str | None = None,
+) -> dict:
+    """
+    Generates a structured, easy-to-read Hindi explanation and spoken audio script
+    for any financial document.
+    """
+    prompt = _build_hindi_explanation_prompt(
+        document_type=document_type,
+        summary=summary,
+        fields=fields or {},
+        risks=risks or [],
+        extracted_text=extracted_text,
+    )
+    selected_model = gemini_service.resolve_model(model)
+    try:
+        parsed = await gemini_service.generate_json(prompt, model=selected_model)
+        return {
+            "hindi_title": parsed.get("hindi_title") or f"{document_type} का विवरण",
+            "hindi_summary": parsed.get("hindi_summary") or summary,
+            "key_points": parsed.get("key_points") or [],
+            "risks": parsed.get("risks") or [],
+            "spoken_text": parsed.get("spoken_text") or parsed.get("hindi_summary") or summary,
+        }
+    except (gemini_service.GeminiUnavailableError, ValueError, TypeError) as exc:
+        logger.warning("Gemini Hindi explanation unavailable; using deterministic fallback: %s", exc)
+        return _fallback_hindi_explanation(document_type, summary, fields or {}, risks or [])
+

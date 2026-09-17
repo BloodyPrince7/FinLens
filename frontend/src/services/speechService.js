@@ -16,12 +16,61 @@ export const isSpeechSynthesisSupported = typeof window !== 'undefined' && 'spee
 const RECOGNITION_LOCALES = { en: 'en-IN', hi: 'hi-IN' }
 const SYNTHESIS_LOCALES = { en: 'en-IN', hi: 'hi-IN' }
 
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    window.speechSynthesis.getVoices()
+  }
+}
+
 let recognizer = null
 let currentSpeechResolver = null
 
 /**
+ * Resolves the most natural voice available in the browser for the given language.
+ * Prioritizes native Hindi voices on Windows/Chrome/Edge/Android/macOS.
+ *
+ * @param {'en' | 'hi'} [language='en']
+ * @returns {SpeechSynthesisVoice | null}
+ */
+export function getBestVoice(language = 'en') {
+  if (!isSpeechSynthesisSupported) return null
+  const voices = window.speechSynthesis.getVoices()
+  if (!voices || voices.length === 0) return null
+
+  if (language === 'hi') {
+    // 1. High-quality natural Hindi voices (Google हिन्दी, Microsoft Kalpana/Hemant)
+    const hiNatural = voices.find(
+      (v) =>
+        (v.lang?.toLowerCase() === 'hi-in' || v.lang?.toLowerCase() === 'hi_in') &&
+        (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Kalpana') || v.name.includes('Hemant'))
+    )
+    if (hiNatural) return hiNatural
+
+    // 2. Any exact hi-IN locale voice
+    const hiExact = voices.find((v) => v.lang?.toLowerCase() === 'hi-in' || v.lang?.toLowerCase() === 'hi_in')
+    if (hiExact) return hiExact
+
+    // 3. Language code prefix matching
+    const hiPrefix = voices.find((v) => v.lang?.toLowerCase().startsWith('hi'))
+    if (hiPrefix) return hiPrefix
+
+    // 4. Name containing Hindi or हिन्दी
+    const hiName = voices.find((v) => /hindi|हिन्दी/i.test(v.name))
+    if (hiName) return hiName
+  }
+
+  const targetLocale = SYNTHESIS_LOCALES[language] ?? SYNTHESIS_LOCALES.en
+  return (
+    voices.find((v) => v.lang?.toLowerCase() === targetLocale.toLowerCase()) ||
+    voices.find((v) => v.lang?.toLowerCase().startsWith(language)) ||
+    null
+  )
+}
+
+/**
  * Strips raw markdown syntax, asterisks, bullet markers, and formatting symbols
  * so SpeechSynthesis reads text cleanly and naturally without saying "asterisk" or "star".
+ * Also formats Indian financial terminology (₹, %, p.a., EMI) for smooth pronunciation.
  *
  * @param {string} text
  * @param {'en' | 'hi'} [language='en']
@@ -48,10 +97,14 @@ export function formatTextForSpeech(text, language = 'en') {
     .replace(/^\s*[-*+]\s+/gm, '')
     .replace(/^\s*\d+\.\s+/gm, '')
     // Replace Rupee symbols with natural spoken words
-    .replace(/₹\s*([0-9,]+(?:\.[0-9]+)?)/g, language === 'hi' ? '$1 रुपये' : '$1 rupees')
+    .replace(/(?:₹|Rs\.?|INR)\s*([0-9,]+(?:\.[0-9]+)?)/gi, language === 'hi' ? '$1 रुपये' : '$1 rupees')
     .replace(/₹/g, language === 'hi' ? 'रुपये ' : 'rupees ')
     // Replace percent symbol
     .replace(/%/g, language === 'hi' ? ' प्रतिशत' : ' percent')
+    // Replace recurring financial frequency abbreviations
+    .replace(/\b(p\.a\.|per annum)\b/gi, language === 'hi' ? 'प्रति वर्ष' : 'per annum')
+    .replace(/\b(p\.m\.|per month)\b/gi, language === 'hi' ? 'प्रति माह' : 'per month')
+    .replace(/\bEMI\b/g, language === 'hi' ? 'ईएमआई' : 'EMI')
     // Strip any remaining asterisks, hashes, backticks, tildes, pipes, brackets
     .replace(/[*#`~|>\[\]{}]/g, ' ')
     // Normalize spaces and line breaks
@@ -131,9 +184,8 @@ export function speak(text, language) {
     const utterance = new SpeechSynthesisUtterance(cleanText)
     const targetLocale = SYNTHESIS_LOCALES[language] ?? SYNTHESIS_LOCALES.en
     utterance.lang = targetLocale
-    const voices = window.speechSynthesis.getVoices()
-    const matchingVoice = voices.find((v) => v.lang === targetLocale) ?? voices.find((v) => v.lang.startsWith(language))
-    if (matchingVoice) utterance.voice = matchingVoice
+    const bestVoice = getBestVoice(language)
+    if (bestVoice) utterance.voice = bestVoice
 
     currentSpeechResolver = resolve
 
@@ -169,3 +221,8 @@ export function stopSpeaking() {
     }
   }
 }
+
+export function isSpeechActive() {
+  return Boolean(currentSpeechResolver)
+}
+

@@ -1,10 +1,30 @@
-import { AlertTriangle, Bot, Check, Download, FileWarning, FolderPlus, ShieldCheck, WalletCards } from 'lucide-react'
-import { useState } from 'react'
+import {
+  AlertTriangle,
+  Bot,
+  Check,
+  CheckCircle2,
+  Download,
+  FileWarning,
+  FolderPlus,
+  Headphones,
+  Languages,
+  Loader2,
+  ShieldCheck,
+  Square,
+  Volume2,
+  WalletCards,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePageContext } from '../App'
 import ImageUploader from '../components/ImageUploader'
-import { analyzeDocument, downloadDocument, uploadDocument } from '../services/financeService'
-import { extractTextFromDocument } from '../services/imageService'
+import {
+  analyzeDocument,
+  downloadDocument,
+  getHindiDocumentExplanation,
+  uploadDocument,
+} from '../services/financeService'
+import { isSpeechSynthesisSupported, speak, stopSpeaking } from '../services/speechService'
 import { useFinancialTwin } from '../context/FinancialTwinContext'
 
 const DOCUMENT_TYPES = [
@@ -24,7 +44,7 @@ const STAGE_LABELS = {
 }
 
 export default function Documents() {
-  const { geminiModel } = usePageContext()
+  const { language, geminiModel } = usePageContext()
   const navigate = useNavigate()
   const { saveAssetToProfile } = useFinancialTwin()
 
@@ -35,10 +55,22 @@ export default function Documents() {
   const [result, setResult] = useState(null)
   const [savedToProfile, setSavedToProfile] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [hindiExplanation, setHindiExplanation] = useState(null)
+  const [loadingHindi, setLoadingHindi] = useState(false)
+  const [isSpeakingHindi, setIsSpeakingHindi] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      stopSpeaking()
+    }
+  }, [])
 
   async function handleSelect(file) {
     setError('')
     setResult(null)
+    setHindiExplanation(null)
+    setIsSpeakingHindi(false)
+    stopSpeaking()
     setSavedToProfile(false)
     setImage({ file, previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null })
 
@@ -57,6 +89,9 @@ export default function Documents() {
       const analysis = await analyzeDocument(uploadResult.id, geminiModel)
       setStage('generating')
       setResult(analysis)
+      if (language === 'hi') {
+        handleFetchHindiExplanation(analysis.id)
+      }
     } catch (err) {
       setError(err.message || 'Unable to analyze this document right now.')
     } finally {
@@ -65,11 +100,50 @@ export default function Documents() {
   }
 
   function handleRemove() {
+    stopSpeaking()
+    setIsSpeakingHindi(false)
     if (image?.previewUrl) URL.revokeObjectURL(image.previewUrl)
     setImage(null)
     setResult(null)
+    setHindiExplanation(null)
     setSavedToProfile(false)
     setError('')
+  }
+
+  async function handleFetchHindiExplanation(docId = result?.id) {
+    if (!docId) return
+    setLoadingHindi(true)
+    setError('')
+    try {
+      const data = await getHindiDocumentExplanation(docId, geminiModel)
+      setHindiExplanation(data)
+    } catch (err) {
+      setError(err.message || 'Unable to generate Hindi explanation right now.')
+    } finally {
+      setLoadingHindi(false)
+    }
+  }
+
+  async function handleToggleHindiSpeech() {
+    if (isSpeakingHindi) {
+      stopSpeaking()
+      setIsSpeakingHindi(false)
+      return
+    }
+
+    if (!hindiExplanation) return
+
+    const speechText = hindiExplanation.spoken_text || hindiExplanation.hindi_summary
+    if (!speechText) return
+
+    setIsSpeakingHindi(true)
+    try {
+      await speak(speechText, 'hi')
+    } catch (err) {
+      console.error('Speech error:', err)
+    } finally {
+      setIsSpeakingHindi(false)
+    }
   }
 
   async function handleSaveToProfile() {
@@ -212,6 +286,154 @@ export default function Documents() {
               </ul>
             </div>
           )}
+
+          {/* Hindi Reading & Voice Readout Section */}
+          <div className="rounded-2xl border-2 border-emerald-300/80 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/40 p-4 sm:p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
+                  <Languages className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-brand-ink flex items-center gap-2">
+                    <span>हिंदी में समझें और सुनें</span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                      Hindi Readout
+                    </span>
+                  </h3>
+                  <p className="text-xs text-brand-ink/65">
+                    दस्तावेज़ का सरल सारांश, आंकड़े और आवाज में सुनने की सुविधा
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {!hindiExplanation ? (
+                  <button
+                    type="button"
+                    onClick={() => handleFetchHindiExplanation()}
+                    disabled={loadingHindi}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60 transition-colors cursor-pointer"
+                  >
+                    {loadingHindi ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>हिंदी तैयार हो रही है...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Languages className="h-3.5 w-3.5" />
+                        <span>हिंदी विवरण देखें</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {isSpeechSynthesisSupported && (
+                      <button
+                        type="button"
+                        onClick={handleToggleHindiSpeech}
+                        className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold shadow-sm transition-all cursor-pointer ${
+                          isSpeakingHindi
+                            ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        }`}
+                      >
+                        {isSpeakingHindi ? (
+                          <>
+                            <Square className="h-3.5 w-3.5 fill-current" />
+                            <span>रोकें (Stop)</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="h-3.5 w-3.5" />
+                            <span>हिंदी में सुनें</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {loadingHindi && !hindiExplanation && (
+              <div className="py-6 text-center">
+                <Loader2 className="mx-auto h-6 w-6 animate-spin text-emerald-600" />
+                <p className="mt-2 text-sm text-brand-ink/70">
+                  Gemini आपके दस्तावेज़ को सरल हिंदी में तैयार कर रहा है...
+                </p>
+              </div>
+            )}
+
+            {hindiExplanation && (
+              <div className="mt-3.5 space-y-3.5">
+                <div>
+                  <h4 className="text-sm font-bold text-emerald-950">
+                    {hindiExplanation.hindi_title}
+                  </h4>
+                  <p className="mt-1 text-sm leading-relaxed text-brand-ink/90 font-medium">
+                    {hindiExplanation.hindi_summary}
+                  </p>
+                </div>
+
+                {hindiExplanation.key_points?.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-emerald-900 mb-2">
+                      मुख्य बिंदु (Key Highlights)
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {hindiExplanation.key_points.map((point, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-2 rounded-xl border border-emerald-100 bg-white/90 p-2.5 shadow-xs"
+                        >
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                          <span className="text-xs font-semibold text-brand-ink/90 leading-snug">
+                            {point}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {hindiExplanation.risks?.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3">
+                    <h5 className="flex items-center gap-1.5 text-xs font-bold text-amber-900 mb-1.5">
+                      <FileWarning className="h-3.5 w-3.5 text-amber-700" />
+                      जरूरी सावधानियां एवं शर्तें
+                    </h5>
+                    <ul className="list-disc list-inside space-y-1 text-xs text-amber-950/90 font-medium">
+                      {hindiExplanation.risks.map((risk, index) => (
+                        <li key={index}>{risk}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {hindiExplanation.spoken_text && (
+                  <div className="rounded-xl bg-white/80 border border-emerald-100 p-2.5 flex items-center justify-between gap-3 text-xs text-brand-ink/75">
+                    <div className="flex items-center gap-2 truncate">
+                      <Headphones className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span className="truncate">
+                        <strong className="text-brand-ink">ऑडियो टेक्स्ट:</strong> {hindiExplanation.spoken_text}
+                      </span>
+                    </div>
+                    {isSpeechSynthesisSupported && (
+                      <button
+                        type="button"
+                        onClick={handleToggleHindiSpeech}
+                        className="text-xs font-bold text-emerald-700 hover:text-emerald-900 shrink-0 underline cursor-pointer"
+                      >
+                        {isSpeakingHindi ? 'रोकें' : 'सुनें'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="border-t border-brand-blue-light pt-4">
             <div className="mb-3">

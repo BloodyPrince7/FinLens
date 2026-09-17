@@ -1,8 +1,30 @@
+import { useState } from 'react'
+import { Square, Volume2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { isSpeechSynthesisSupported, speak, stopSpeaking } from '../services/speechService'
 
 export default function MessageBubble({ message }) {
   const fromUser = message.role === 'user'
+  const [isPlaying, setIsPlaying] = useState(false)
+  const isHindi = /[\u0900-\u097F]/.test(message.content)
+
+  async function handleToggleSpeech() {
+    if (isPlaying) {
+      stopSpeaking()
+      setIsPlaying(false)
+      return
+    }
+
+    stopSpeaking()
+    setIsPlaying(true)
+    const lang = isHindi ? 'hi' : 'en'
+    try {
+      await speak(message.content, lang)
+    } finally {
+      setIsPlaying(false)
+    }
+  }
 
   return (
     <div className={`flex ${fromUser ? 'justify-end' : 'justify-start'}`}>
@@ -50,9 +72,33 @@ export default function MessageBubble({ message }) {
             >
               {message.content}
             </ReactMarkdown>
+
+            {isSpeechSynthesisSupported && (
+              <div className="mt-2.5 flex items-center justify-between border-t border-brand-ink/10 pt-1.5 text-xs text-brand-ink/60">
+                <button
+                  type="button"
+                  onClick={handleToggleSpeech}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium hover:bg-black/5 transition-colors cursor-pointer text-brand-ink/75 hover:text-brand-ink"
+                  title={isPlaying ? 'Stop reading' : 'Read aloud'}
+                >
+                  {isPlaying ? (
+                    <>
+                      <Square className="h-3 w-3 fill-red-500 text-red-500" />
+                      <span className="text-red-600 font-semibold">{isHindi ? 'रोकें' : 'Stop'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="h-3 w-3 text-brand-blue" />
+                      <span>{isHindi ? 'सुनें (Listen)' : 'Listen'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
+
     </div>
   )
 }

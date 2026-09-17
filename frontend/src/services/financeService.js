@@ -97,6 +97,15 @@ export async function getDocument(documentId) {
   return parseJsonOrThrow(response, 'Document not found.')
 }
 
+/** Generates a structured Hindi explanation and speech audio script for a document. */
+export async function getHindiDocumentExplanation(documentId, model) {
+  const url = new URL(`${API_BASE_URL}/api/documents/${documentId}/hindi-explanation`)
+  if (model) url.searchParams.append('model', model)
+  const response = await authenticatedFetch(url.toString(), { method: 'POST' })
+  return parseJsonOrThrow(response, 'Unable to generate Hindi explanation right now.')
+}
+
+
 export async function getProfile(userId) {
   const response = await authenticatedFetch(`${API_BASE_URL}/api/profile/${encodeURIComponent(userId)}`)
   return parseJsonOrThrow(response, 'Unable to load your financial profile.')
