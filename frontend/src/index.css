@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  /* FinLens AI fintech palette. Token NAMES kept the same as the previous
+     Sahayak theme (brand-blue, brand-ink, etc.) so every existing className
+     across the app re-skins automatically - only the values changed. */
+  --color-brand-blue: #007bff; /* Secondary Blue */
+  --color-brand-blue-dark: #002970; /* Primary Navy */
+  --color-brand-blue-light: #e7f1ff; /* light blue tint for chips/backgrounds */
+  --color-brand-green: #16a34a; /* Success */
+  --color-brand-green-light: #e6f9fc; /* light cyan tint, used for AI bubbles */
+  --color-brand-beige: #f5f7fb; /* app background */
+  --color-brand-beige-dark: #e5e9f0; /* subtle card border/divider tint */
+  --color-brand-ink: #1f2937; /* body text */
+
+  /* Direct fintech tokens for new components */
+  --color-navy: #002970;
+  --color-cyan: #00baf2;
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+  --color-danger: #dc2626;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-brand-beige);
+  color: var(--color-brand-ink);
+  font-size: 18px;
+}
+
+* {
+  scrollbar-width: thin;
+}

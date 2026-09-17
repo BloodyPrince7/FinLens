@@ -1,0 +1,95 @@
+/**
+ * Client-side mirror of backend/services/finance_calculations.py, for
+ * instant slider feedback in the What-If Simulator - a network round-trip
+ * per slider tick would be laggy. Keep these two implementations in sync;
+ * the backend copy is the source of truth for "official" analysis results
+ * (e.g. the Product Explorer's "Analyze For Me" button calls the API).
+ */
+
+export function calculateEmi(principal, annualRatePercent, tenureMonths) {
+  if (tenureMonths <= 0) return 0
+  const monthlyRate = annualRatePercent / 12 / 100
+  if (monthlyRate === 0) return Math.round((principal / tenureMonths) * 100) / 100
+  const factor = Math.pow(1 + monthlyRate, tenureMonths)
+  return Math.round(((principal * monthlyRate * factor) / (factor - 1)) * 100) / 100
+}
+
+export function calculateTotalInterest(principal, emi, tenureMonths) {
+  return Math.round((emi * tenureMonths - principal) * 100) / 100
+}
+
+export function calculateDti(existingEmis, newEmi, monthlyIncome) {
+  if (monthlyIncome <= 0) return 100
+  return Math.round(((existingEmis + newEmi) / monthlyIncome) * 1000) / 10
+}
+
+export function calculateAffordability(dtiPercent) {
+  if (dtiPercent <= 35) return 'Safe'
+  if (dtiPercent <= 50) return 'Moderate'
+  if (dtiPercent <= 65) return 'Stretched'
+  return 'High Risk'
+}
+
+export const AFFORDABILITY_COLOR = {
+  Safe: 'text-brand-green',
+  Moderate: 'text-brand-blue',
+  Stretched: 'text-amber-600',
+  'High Risk': 'text-red-600',
+}
+
+export function calculateHealthScore({ monthlyIncome, monthlyExpenses, existingEmis, savings }) {
+  const surplus = monthlyIncome - monthlyExpenses - existingEmis
+  const savingsRatio = monthlyIncome > 0 ? (surplus / monthlyIncome) * 100 : 0
+  const debtRatio = monthlyIncome > 0 ? (existingEmis / monthlyIncome) * 100 : 100
+  const emergencyFundMonths = monthlyExpenses > 0 ? savings / monthlyExpenses : 0
+
+  const savingsScore = Math.max(0, Math.min(35, savingsRatio * 1.2))
+  const debtScore = Math.max(0, 35 - debtRatio * 0.7)
+  const emergencyScore = Math.max(0, Math.min(30, emergencyFundMonths * 6))
+  const score = Math.max(0, Math.min(100, Math.round(savingsScore + debtScore + emergencyScore)))
+
+  return {
+    score,
+    incomeStability: monthlyIncome > 0 ? 'Good' : 'Unknown',
+    savings: savingsRatio >= 25 ? 'Good' : savingsRatio >= 10 ? 'Moderate' : 'Low',
+    debtBurden: debtRatio <= 20 ? 'Low' : debtRatio <= 40 ? 'Moderate' : 'High',
+    cashFlow: surplus > 0 ? 'Healthy' : 'Tight',
+  }
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
+async function parseJsonOrThrow(response, fallbackMessage) {
+  const data = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(data?.error || fallbackMessage)
+  }
+  return data
+}
+
+/**
+ * Stage 1: upload a document for text extraction.
+ * @param {{ documentType: string, file?: File, extractedText?: string }} params
+ */
+export async function uploadDocument({ documentType, file, extractedText }) {
+  const formData = new FormData()
+  formData.append('document_type', documentType)
+  if (file) formData.append('file', file)
+  if (extractedText) formData.append('extracted_text', extractedText)
+
+  const response = await fetch(`${API_BASE_URL}/api/documents/upload`, { method: 'POST', body: formData })
+  return parseJsonOrThrow(response, 'Unable to process this document. Please try another file.')
+}
+
+/** Stage 2: run structured financial extraction on an uploaded document. */
+export async function analyzeDocument(documentId) {
+  const formData = new FormData()
+  formData.append('document_id', documentId)
+  const response = await fetch(`${API_BASE_URL}/api/documents/analyze`, { method: 'POST', body: formData })
+  return parseJsonOrThrow(response, 'Unable to analyze this document right now.')
+}
+
+export async function getDocument(documentId) {
+  const response = await fetch(`${API_BASE_URL}/api/documents/${documentId}`)
+  return parseJsonOrThrow(response, 'Document not found.')
+}
