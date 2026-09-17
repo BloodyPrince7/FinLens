@@ -1,14 +1,28 @@
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+import os
 
-from models.db import Document, get_session
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
+
+from models.db import Document, DocumentBinary, DocumentOwner, User, get_session
 from models.schemas import DocumentOut, DocumentType, DocumentUploadResponse
 from services import finance_extraction_service, pdf_service
+from services.security import get_current_user
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 ALLOWED_PDF_TYPES = {"application/pdf"}
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/jpg", "image/png"}
+MAX_FILE_BYTES = 10 * 1024 * 1024
+
+
+def _owned_document(session, document_id: str, user_id: str) -> Document:
+    document = session.get(Document, document_id)
+    owner = session.get(DocumentOwner, document_id)
+    if document is None or owner is None or owner.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return document
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -16,6 +30,7 @@ async def upload_document(
     document_type: DocumentType = Form(...),
     file: Optional[UploadFile] = File(None),
     extracted_text: Optional[str] = Form(None),
+    user: User = Depends(get_current_user),
 ):
     """
     Stage 1 of 2: extract text and store it (unanalyzed). PDFs are extracted
@@ -25,23 +40,39 @@ async def upload_document(
     """
     text = ""
 
+    contents = None
+    content_type = None
     if file is not None and file.filename:
         contents = await file.read()
-        if file.content_type not in ALLOWED_PDF_TYPES and not file.filename.lower().endswith(".pdf"):
+        if len(contents) > MAX_FILE_BYTES:
+            raise HTTPException(status_code=413, detail="File is too large. Maximum size is 10 MB.")
+        content_type = file.content_type or "application/octet-stream"
+        is_pdf = content_type in ALLOWED_PDF_TYPES or file.filename.lower().endswith(".pdf")
+        is_image = content_type in ALLOWED_IMAGE_TYPES or file.filename.lower().endswith((".jpg", ".jpeg", ".png"))
+        if is_image and content_type == "application/octet-stream":
+            content_type = "image/png" if file.filename.lower().endswith(".png") else "image/jpeg"
+        if not is_pdf and not is_image:
             raise HTTPException(
                 status_code=400,
                 detail="Unable to process this document. Please try another file.",
             )
-        try:
-            text = pdf_service.extract_text_from_pdf(contents)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if is_pdf:
+            try:
+                text = pdf_service.extract_text_from_pdf(contents)
+            except ValueError:
+                # Scanned or non-text PDF - Gemini will process the file directly during analysis
+                text = ""
+        elif extracted_text and extracted_text.strip():
+            text = extracted_text.strip()
+        else:
+            # Images will be analyzed directly by Gemini Vision
+            text = ""
     elif extracted_text and extracted_text.strip():
         text = extracted_text.strip()
     else:
         raise HTTPException(
             status_code=400,
-            detail="We could not extract readable text. Please upload a clearer document.",
+            detail="A file or extracted text is required.",
         )
 
     with get_session() as session:
@@ -51,6 +82,10 @@ async def upload_document(
             extracted_text=text,
         )
         session.add(document)
+        session.flush()
+        session.add(DocumentOwner(document_id=document.id, user_id=user.id))
+        if contents is not None:
+            session.add(DocumentBinary(document_id=document.id, content_type=content_type, data=contents))
         session.commit()
         session.refresh(document)
 
@@ -66,19 +101,34 @@ async def upload_document(
 
 
 @router.post("/analyze", response_model=DocumentUploadResponse)
-async def analyze_document(document_id: str = Form(...)):
-    """Stage 2 of 2: runs the LLM-based structured extraction on a previously uploaded document."""
+async def analyze_document(
+    document_id: str = Form(...),
+    model: Optional[str] = Form(None),
+    user: User = Depends(get_current_user),
+):
+    """Stage 2 of 2: runs Gemini multimodal structured extraction on a previously uploaded document."""
     with get_session() as session:
-        document = session.get(Document, document_id)
-        if document is None:
-            raise HTTPException(status_code=404, detail="Document not found.")
+        document = _owned_document(session, document_id, user.id)
+        stored_file = session.get(DocumentBinary, document_id)
 
-        result = await finance_extraction_service.extract_financial_data(
-            document.document_type, document.extracted_text
-        )
+        file_bytes = stored_file.data if stored_file else None
+        mime_type = stored_file.content_type if stored_file else None
+
+        try:
+            result = await finance_extraction_service.extract_financial_data(
+                document.document_type,
+                document.extracted_text,
+                file_bytes=file_bytes,
+                mime_type=mime_type,
+                model=model,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         document.summary = result["summary"]
         document.fields = result["fields"]
         document.risks = result["risks"]
+        if result.get("extracted_text"):
+            document.extracted_text = result["extracted_text"]
         session.commit()
         session.refresh(document)
 
@@ -94,11 +144,9 @@ async def analyze_document(document_id: str = Form(...)):
 
 
 @router.get("/{document_id}", response_model=DocumentOut)
-async def get_document(document_id: str):
+async def get_document(document_id: str, user: User = Depends(get_current_user)):
     with get_session() as session:
-        document = session.get(Document, document_id)
-        if document is None:
-            raise HTTPException(status_code=404, detail="Document not found.")
+        document = _owned_document(session, document_id, user.id)
         return DocumentOut(
             id=document.id,
             filename=document.filename,
@@ -107,4 +155,19 @@ async def get_document(document_id: str):
             fields=document.fields,
             risks=document.risks,
             extracted_text=document.extracted_text,
+        )
+
+
+@router.get("/{document_id}/download")
+async def download_document(document_id: str, user: User = Depends(get_current_user)):
+    with get_session() as session:
+        document = _owned_document(session, document_id, user.id)
+        stored_file = session.get(DocumentBinary, document_id)
+        if stored_file is None:
+            raise HTTPException(status_code=404, detail="The original file is not available for download.")
+        filename = os.path.basename(document.filename).replace('"', "") or "document"
+        return Response(
+            content=stored_file.data,
+            media_type=stored_file.content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )

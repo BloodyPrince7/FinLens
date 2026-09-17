@@ -1,61 +1,60 @@
-import { Bell, LogOut, ScanLine, User } from 'lucide-react'
+import { Bot, FileText, Gauge, LayoutDashboard, LogOut, MessagesSquare, ScanLine, Sparkles, UserRound } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import LanguageSelector from './LanguageSelector'
+import GeminiModelSelector from './GeminiModelSelector'
 
 const NAV_LINKS = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/documents', label: 'Documents' },
-  { to: '/financial-twin', label: 'Financial Twin' },
-  { to: '/insights', label: 'Insights' },
+  { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
+  { to: '/documents', label: 'Documents', icon: FileText },
+  { to: '/financial-twin', label: 'My Money', icon: Gauge },
+  { to: '/insights', label: 'Insights', icon: Sparkles },
+  { to: '/assistant', label: 'AI Guide', icon: Bot },
+  { to: '/advisor', label: 'Convai Advisor', icon: MessagesSquare },
 ]
 
-export default function Header({ language, onLanguageChange, onLogout }) {
+export default function Header({ user, language, onLanguageChange, geminiModel, onGeminiModelChange, onLogout }) {
   return (
-    <header className="border-b-2 border-brand-blue-light bg-white">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3">
+    <header className="sticky top-0 z-30 border-b border-brand-blue-light/80 bg-white/95 shadow-sm backdrop-blur">
+      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-blue-dark text-white">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-blue-dark to-brand-blue text-white shadow-md shadow-brand-blue/20">
             <ScanLine className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-xl font-bold leading-tight text-brand-ink">FinLens AI</p>
-            <p className="text-sm text-brand-ink/60">Personal Financial Companion</p>
+            <p className="text-xl font-extrabold leading-tight tracking-tight text-brand-blue-dark">FinLens<span className="text-brand-blue">AI</span></p>
+            <p className="text-xs font-medium text-brand-ink/50">Money, made intelligent</p>
           </div>
         </div>
 
-        <nav className="flex items-center gap-1 rounded-full bg-brand-beige p-1">
+        <nav className="order-3 flex w-full items-center gap-1 overflow-x-auto rounded-2xl bg-brand-beige p-1 md:order-none md:w-auto">
           {NAV_LINKS.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
               className={({ isActive }) =>
-                `rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                  isActive ? 'bg-brand-blue-dark text-white' : 'text-brand-ink/70 hover:text-brand-ink'
+                `flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-all ${
+                  isActive ? 'bg-brand-blue-dark text-white shadow-sm' : 'text-brand-ink/60 hover:bg-white hover:text-brand-ink'
                 }`
               }
             >
+              <link.icon className="h-4 w-4" aria-hidden="true" />
               {link.label}
             </NavLink>
           ))}
         </nav>
 
         <div className="flex items-center gap-3">
+          <GeminiModelSelector value={geminiModel} onChange={onGeminiModelChange} compact />
           <LanguageSelector language={language} onChange={onLanguageChange} />
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-brand-ink/70 hover:bg-brand-beige"
-          >
-            <Bell className="h-5 w-5" aria-hidden="true" />
-          </button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-blue-light text-brand-blue-dark">
-            <User className="h-5 w-5" aria-hidden="true" />
+          <div className="hidden items-center gap-2 rounded-xl bg-brand-blue-light px-3 py-2 sm:flex">
+            <UserRound className="h-4 w-4 text-brand-blue-dark" aria-hidden="true" />
+            <span className="max-w-28 truncate text-sm font-semibold text-brand-blue-dark">{user?.name}</span>
           </div>
           <button
             type="button"
             onClick={onLogout}
             aria-label="Logout"
-            className="flex items-center gap-2 rounded-lg border-2 border-brand-blue-dark/20 px-3 py-2 text-sm font-medium text-brand-ink hover:border-brand-blue hover:text-brand-blue-dark"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-blue-dark/15 text-brand-ink/60 hover:border-brand-blue hover:text-brand-blue-dark"
           >
             <LogOut className="h-5 w-5" aria-hidden="true" />
           </button>

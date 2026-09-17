@@ -1,11 +1,11 @@
-import { AlertTriangle, FileWarning } from 'lucide-react'
+import { AlertTriangle, Bot, Check, Download, FileWarning, FolderPlus, ShieldCheck, WalletCards } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { usePageContext } from '../App'
 import ImageUploader from '../components/ImageUploader'
-import { buildDocumentContextMessage } from '../services/convaiService'
-import { analyzeDocument, uploadDocument } from '../services/financeService'
-import { extractTextFromDocument, validateImageFile } from '../services/imageService'
-import { useFinLensConversation } from '../hooks/useFinLensConversation'
+import { analyzeDocument, downloadDocument, uploadDocument } from '../services/financeService'
+import { extractTextFromDocument } from '../services/imageService'
+import { useFinancialTwin } from '../context/FinancialTwinContext'
 
 const DOCUMENT_TYPES = [
   { value: 'itr', label: 'Income Tax Return (ITR)' },
@@ -18,54 +18,43 @@ const DOCUMENT_TYPES = [
 ]
 
 const STAGE_LABELS = {
-  uploading: 'Uploading...',
-  reading: 'Reading document...',
-  extracting: 'Extracting financial information...',
-  analyzing: 'Analyzing financial profile...',
-  generating: 'Generating insights...',
+  uploading: 'Uploading document...',
+  analyzing: 'Analyzing with Gemini Vision...',
+  generating: 'Extracting financial insights...',
 }
 
 export default function Documents() {
-  const { language } = usePageContext()
-  const conversation = useFinLensConversation(language)
+  const { geminiModel } = usePageContext()
+  const navigate = useNavigate()
+  const { saveAssetToProfile } = useFinancialTwin()
 
   const [documentType, setDocumentType] = useState('bank_statement')
   const [image, setImage] = useState(null)
   const [stage, setStage] = useState(null)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
+  const [savedToProfile, setSavedToProfile] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   async function handleSelect(file) {
     setError('')
     setResult(null)
+    setSavedToProfile(false)
     setImage({ file, previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null })
 
     setStage('uploading')
-    let extraction
-    if (file.type === 'application/pdf') {
-      setStage('reading')
-      try {
-        const uploadResult = await uploadDocument({ documentType, file })
-        extraction = { status: 'success', documentId: uploadResult.id }
-      } catch (err) {
-        setError(err.message)
-        setStage(null)
-        return
-      }
-    } else {
-      setStage('reading')
-      extraction = await extractTextFromDocument(file, documentType, () => {})
-      if (extraction.status === 'error') {
-        setError(extraction.error)
-        setStage(null)
-        return
-      }
+    let uploadResult
+    try {
+      uploadResult = await uploadDocument({ documentType, file })
+    } catch (err) {
+      setError(err.message || 'Unable to upload this document. Please try another file.')
+      setStage(null)
+      return
     }
 
-    setStage('extracting')
     setStage('analyzing')
     try {
-      const analysis = await analyzeDocument(extraction.documentId)
+      const analysis = await analyzeDocument(uploadResult.id, geminiModel)
       setStage('generating')
       setResult(analysis)
     } catch (err) {
@@ -79,14 +68,63 @@ export default function Documents() {
     if (image?.previewUrl) URL.revokeObjectURL(image.previewUrl)
     setImage(null)
     setResult(null)
+    setSavedToProfile(false)
     setError('')
+  }
+
+  async function handleSaveToProfile() {
+    if (!result) return
+    const record = {
+      id: result.id,
+      filename: result.filename || image?.file?.name || 'Financial document',
+      documentType: result.document_type || documentType,
+      summary: result.summary,
+      fields: result.fields || {},
+      risks: result.risks || [],
+      savedAt: new Date().toISOString(),
+    }
+    if (!['loan_agreement', 'insurance_policy'].includes(documentType)) {
+      setError('Only loan agreements and insurance policies can be added to the structured profile right now.')
+      return
+    }
+    setIsSaving(true)
+    setError('')
+    try {
+      await saveAssetToProfile(documentType, record)
+      setSavedToProfile(true)
+    } catch (err) {
+      setError(err.message || 'Unable to save this document to your profile.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   function handleAskAboutDocument() {
     if (!result) return
-    const message = buildDocumentContextMessage(result.summary, result.fields, result.risks)
-    conversation.askFinLens(message, { displayText: 'Please explain this document to me.' })
+    navigate('/assistant', {
+      state: {
+        document: {
+          filename: result.filename || image?.file?.name || 'Uploaded document',
+          documentType: result.document_type || documentType,
+          summary: result.summary,
+          fields: result.fields || {},
+          risks: result.risks || [],
+        },
+      },
+    })
   }
+
+  const profileDestination = documentType === 'loan_agreement'
+    ? 'Loans'
+    : documentType === 'insurance_policy'
+      ? 'Insurance'
+      : 'Documents'
+  const ProfileIcon = documentType === 'loan_agreement'
+    ? WalletCards
+    : documentType === 'insurance_policy'
+      ? ShieldCheck
+      : FolderPlus
+  const canSaveToProfile = ['loan_agreement', 'insurance_policy'].includes(documentType)
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 px-4 py-6">
@@ -133,6 +171,14 @@ export default function Documents() {
         <div className="space-y-3 rounded-2xl border-2 border-brand-blue-light bg-white p-5">
           <h2 className="text-lg font-semibold text-brand-ink">Summary</h2>
           <p className="text-brand-ink/80">{result.summary}</p>
+          <button
+            type="button"
+            onClick={() => downloadDocument(result.id, result.filename || image?.file?.name).catch((err) => setError(err.message))}
+            className="inline-flex items-center gap-2 rounded-lg border border-brand-blue-dark/20 px-3 py-2 text-sm font-semibold text-brand-blue-dark hover:bg-brand-blue-light"
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+            Download original
+          </button>
 
           {Object.keys(result.fields || {}).length > 0 && (
             <div>
@@ -167,27 +213,50 @@ export default function Documents() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={handleAskAboutDocument}
-            disabled={conversation.status === 'thinking'}
-            className="rounded-lg bg-brand-blue-dark px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            Ask FinLens AI to explain this
-          </button>
-
-          {conversation.messages.length > 0 && (
-            <div className="space-y-2 border-t border-brand-blue-light pt-3">
-              {conversation.messages.slice(-2).map((message) => (
-                <p
-                  key={message.id}
-                  className={message.role === 'user' ? 'font-medium text-brand-ink' : 'text-brand-ink/80'}
-                >
-                  {message.content}
-                </p>
-              ))}
+          <div className="border-t border-brand-blue-light pt-4">
+            <div className="mb-3">
+              <h3 className="font-semibold text-brand-ink">What would you like to do?</h3>
+              <p className="text-sm text-brand-ink/60">Choose where this document should go next.</p>
             </div>
-          )}
+            <div className={`grid gap-3 ${canSaveToProfile ? 'sm:grid-cols-2' : ''}`}>
+              {canSaveToProfile && <div className="flex flex-col rounded-xl border-2 border-brand-blue-light bg-brand-beige p-4">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-blue-dark">
+                  <ProfileIcon className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <h4 className="font-semibold text-brand-ink">Save to my {profileDestination}</h4>
+                <p className="mt-1 flex-1 text-sm text-brand-ink/60">
+                  Keep these extracted details in your Financial Twin for future comparisons and advice.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleSaveToProfile}
+                  disabled={savedToProfile || isSaving}
+                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-brand-blue-dark ring-1 ring-brand-blue-dark/20 hover:bg-brand-blue-light disabled:text-brand-green"
+                >
+                  {savedToProfile ? <Check className="h-4 w-4" /> : <FolderPlus className="h-4 w-4" />}
+                  {savedToProfile ? `Saved to ${profileDestination}` : isSaving ? 'Saving...' : `Save to ${profileDestination}`}
+                </button>
+              </div>}
+
+              <div className="flex flex-col rounded-xl bg-brand-blue-dark p-4 text-white shadow-sm">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-white/10">
+                  <Bot className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <h4 className="font-semibold">Ask FinLens AI</h4>
+                <p className="mt-1 flex-1 text-sm text-white/70">
+                  Ask anything about this document. FinLens will also use your income, expenses, loans, policies, and goals.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAskAboutDocument}
+                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-brand-blue px-4 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+                >
+                  <Bot className="h-4 w-4" />
+                  Open AI conversation
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </main>

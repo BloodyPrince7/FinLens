@@ -1,14 +1,13 @@
-# Sahayak – AI Health Companion for Senior Citizens
+# FinLens AI Frontend
 
-A React + Vite healthcare assistant for senior citizens: a live conversational
-AI (voice + text) that explains prescriptions and medical reports in simple
-English or Hindi, with browser-based OCR for uploaded documents.
+A React + Vite personal-finance experience with Gemini-powered chat,
+financial-document analysis, and a separate Convai advisor page.
 
 ## Stack
 
 - React + Vite, Tailwind CSS
-- Convai Character REST API for conversation (proxied through a local Vite
-  dev-server middleware so the API key never reaches the browser bundle)
+- Authenticated FastAPI backend for Gemini chat and document intelligence
+- Dedicated Convai Experience page using only its public Experience ID
 - Web Speech API for voice input/output
 - Tesseract.js for local, in-browser OCR
 
@@ -19,12 +18,11 @@ npm install
 npm run dev
 ```
 
-Copy `.env.example` to `.env` and fill in your Convai credentials:
+Copy `.env.example` to `.env` and add the public Convai Experience ID:
 
 ```
-VITE_CONVAI_API_KEY=your_convai_api_key_here
-VITE_CONVAI_CHARACTER_ID=your_character_id_here
+VITE_CONVAI_EXPERIENCE_ID=your_experience_id_here
 ```
 
-Then open `http://localhost:5173/login` (demo login: `senior@demo.com` / `123456`).
+Then open `http://localhost:5173/login` (demo login: `demo@finlens.ai` / `123456`).
 "# FinLens" 

@@ -3,13 +3,12 @@
  *
  * Speech-to-text uses SpeechRecognition (mic input). Text-to-speech uses
  * speechSynthesis to read the AI's real text response aloud - this is the
- * browser's own synthesized voice, not Convai's generated audio (that
+ * browser's own synthesized voice, not Gemini-generated audio (that
  * required the streaming/LiveKit integrations this app no longer uses).
  * Both are feature-detected; callers should check `isSpeechRecognitionSupported`
  * / `isSpeechSynthesisSupported` before offering mic/voice-output controls.
  */
-
-const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition
+const SpeechRecognitionImpl = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
 
 export const isSpeechRecognitionSupported = Boolean(SpeechRecognitionImpl)
 export const isSpeechSynthesisSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
@@ -18,6 +17,49 @@ const RECOGNITION_LOCALES = { en: 'en-IN', hi: 'hi-IN' }
 const SYNTHESIS_LOCALES = { en: 'en-IN', hi: 'hi-IN' }
 
 let recognizer = null
+let currentSpeechResolver = null
+
+/**
+ * Strips raw markdown syntax, asterisks, bullet markers, and formatting symbols
+ * so SpeechSynthesis reads text cleanly and naturally without saying "asterisk" or "star".
+ *
+ * @param {string} text
+ * @param {'en' | 'hi'} [language='en']
+ * @returns {string}
+ */
+export function formatTextForSpeech(text, language = 'en') {
+  if (!text) return ''
+
+  let clean = text
+    // Remove markdown code blocks and inline code
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove markdown links but keep anchor text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove headers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove bold and italic markers (asterisks and underscores)
+    .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+    .replace(/_{1,3}([^_]+)_{1,3}/g, '$1')
+    // Remove strikethrough
+    .replace(/~~([^~]+)~~/g, '$1')
+    // Remove blockquotes and list markers
+    .replace(/^>\s+/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    // Replace Rupee symbols with natural spoken words
+    .replace(/₹\s*([0-9,]+(?:\.[0-9]+)?)/g, language === 'hi' ? '$1 रुपये' : '$1 rupees')
+    .replace(/₹/g, language === 'hi' ? 'रुपये ' : 'rupees ')
+    // Replace percent symbol
+    .replace(/%/g, language === 'hi' ? ' प्रतिशत' : ' percent')
+    // Strip any remaining asterisks, hashes, backticks, tildes, pipes, brackets
+    .replace(/[*#`~|>\[\]{}]/g, ' ')
+    // Normalize spaces and line breaks
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return clean
+}
 
 /**
  * Starts listening once and resolves with the final transcript.
@@ -71,33 +113,59 @@ function mapRecognitionError(code) {
 }
 
 /**
- * Reads text aloud in the given language. Resolves when speech finishes.
+ * Reads text aloud in the given language. Resolves when speech finishes or is cancelled.
  * @param {string} text
  * @param {'en' | 'hi'} language
  * @returns {Promise<void>}
  */
 export function speak(text, language) {
-  return new Promise((resolve, reject) => {
-    if (!isSpeechSynthesisSupported || !text?.trim()) {
+  return new Promise((resolve) => {
+    stopSpeaking()
+
+    const cleanText = formatTextForSpeech(text, language)
+    if (!isSpeechSynthesisSupported || !cleanText) {
       resolve()
       return
     }
-    window.speechSynthesis.cancel()
 
-    const utterance = new SpeechSynthesisUtterance(text)
+    const utterance = new SpeechSynthesisUtterance(cleanText)
     const targetLocale = SYNTHESIS_LOCALES[language] ?? SYNTHESIS_LOCALES.en
     utterance.lang = targetLocale
     const voices = window.speechSynthesis.getVoices()
     const matchingVoice = voices.find((v) => v.lang === targetLocale) ?? voices.find((v) => v.lang.startsWith(language))
     if (matchingVoice) utterance.voice = matchingVoice
 
-    utterance.onend = () => resolve()
-    utterance.onerror = (event) => reject(new Error(`Speech synthesis error: ${event.error}`))
+    currentSpeechResolver = resolve
+
+    utterance.onend = () => {
+      if (currentSpeechResolver === resolve) {
+        currentSpeechResolver = null
+      }
+      resolve()
+    }
+    utterance.onerror = (event) => {
+      // Ignored canceled or interrupted errors gracefully when stopped by user
+      if (currentSpeechResolver === resolve) {
+        currentSpeechResolver = null
+      }
+      resolve()
+    }
 
     window.speechSynthesis.speak(utterance)
   })
 }
 
 export function stopSpeaking() {
-  if (isSpeechSynthesisSupported) window.speechSynthesis.cancel()
+  if (currentSpeechResolver) {
+    const r = currentSpeechResolver
+    currentSpeechResolver = null
+    r()
+  }
+  if (isSpeechSynthesisSupported) {
+    try {
+      window.speechSynthesis.cancel()
+    } catch {
+      // Ignore
+    }
+  }
 }

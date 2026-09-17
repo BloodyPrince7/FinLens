@@ -4,8 +4,7 @@ import { useState } from 'react'
 const EXPERIENCE_ID = import.meta.env.VITE_CONVAI_EXPERIENCE_ID
 
 /**
- * Attempts to show Convai's actual Avatar Studio character (the real nurse
- * avatar, not a local substitute) via its public Share Link
+ * Attempts to show Convai's official financial advisor via its public Share Link
  * (https://x.convai.com/experience/{id}), without the paid Pixel Streaming
  * Embed product this account's free plan doesn't support.
  *
@@ -26,14 +25,12 @@ const EXPERIENCE_ID = import.meta.env.VITE_CONVAI_EXPERIENCE_ID
  * browser you're viewing this site with, the embed below may show the real
  * avatar (your session cookie carries over). Anyone else - including real
  * end users - will see Convai's own "Experience Not Found" screen instead.
- * That's why the "Open Sahayak Avatar" button (guaranteed to work, since
+ * That's why the "Open FinLens Advisor" button (guaranteed to work, since
  * it's a plain top-level navigation) is always shown alongside it, not
  * hidden behind a success/failure check we can't actually perform.
  *
  * To upgrade later: once domain whitelisting is available (paid plan),
- * delete this component and render `@convai/experience-embed`'s
- * `PixelStreamComponent` in its place - CharacterPanel.jsx only needs this
- * one component swapped, nothing else changes.
+ * replace the iframe with `@convai/experience-embed`'s `PixelStreamComponent`.
  */
 export default function ConvaiAvatarEmbed() {
   const [iframeFailed, setIframeFailed] = useState(false)
@@ -45,7 +42,7 @@ export default function ConvaiAvatarEmbed() {
   return (
     <section className="rounded-2xl border-2 border-brand-blue-light bg-white p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-brand-ink">Official Convai Avatar</h2>
+        <h2 className="text-lg font-semibold text-brand-ink">Official Convai Financial Advisor</h2>
         <a
           href={shareUrl}
           target="_blank"

@@ -4,11 +4,11 @@ from fastapi.responses import JSONResponse
 
 from config import settings
 from models.db import init_db
-from routes import assistant, auth, documents, finance
+from routes import assistant, auth, documents, finance, profile
 
 app = FastAPI(
     title="FinLens AI API",
-    description="Document intelligence and financial calculations for the FinLens AI companion.",
+    description="Gemini-powered document intelligence and financial guidance for FinLens AI.",
     version="1.0.0",
 )
 
@@ -16,7 +16,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_url],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -24,6 +24,7 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
+    auth.seed_demo_users()
 
 
 @app.exception_handler(HTTPException)
@@ -38,6 +39,7 @@ app.include_router(auth.router)
 app.include_router(assistant.router)
 app.include_router(documents.router)
 app.include_router(finance.router)
+app.include_router(profile.router)
 
 
 @app.get("/api/health")

@@ -1,10 +1,16 @@
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
+
+
+class RegisterRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
 
 
 class UserOut(BaseModel):
@@ -17,6 +23,8 @@ class LoginResponse(BaseModel):
     success: bool
     message: str
     user: Optional[UserOut] = None
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
 
 
 class ErrorResponse(BaseModel):
@@ -29,6 +37,24 @@ class AssistantAnalyzeResponse(BaseModel):
     language: Literal["en", "hi"]
     answer: str
     document_context: str
+
+
+class AssistantChatRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=4000)
+    language: Literal["en", "hi"] = "en"
+    dynamic_context: str = Field(default="", max_length=20000)
+    model: Optional[Literal[
+        "gemini-3.8-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+    ]] = None
+
+
+class AssistantChatResponse(BaseModel):
+    success: bool
+    answer: str
+    model: str
 
 
 DocumentType = Literal[
@@ -91,3 +117,51 @@ class HealthScoreResponse(BaseModel):
     savings: str
     debt_burden: str
     cash_flow: str
+
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    monthly_income: Optional[float] = Field(default=None, ge=0)
+    monthly_expenses: Optional[float] = Field(default=None, ge=0)
+    existing_emis: Optional[float] = Field(default=None, ge=0)
+    savings: Optional[float] = Field(default=None, ge=0)
+    investments: Optional[float] = Field(default=None, ge=0)
+    credit_score: Optional[float] = Field(default=None, ge=0)
+    goals: Optional[str] = None
+    risk_tolerance: Optional[str] = None
+    employment_type: Optional[str] = None
+
+
+class ProfileAssetCreate(BaseModel):
+    document_id: str
+    filename: str
+    summary: str = ""
+    fields: dict[str, Any] = Field(default_factory=dict)
+    risks: list[str] = Field(default_factory=list)
+
+
+class SavedAssetOut(BaseModel):
+    id: str
+    document_id: str
+    filename: str
+    summary: str
+    fields: dict[str, Any]
+    risks: list[str]
+    monthly_impact: float
+
+
+class UserProfileOut(BaseModel):
+    user_id: str
+    name: str
+    monthly_income: float
+    monthly_expenses: float
+    existing_emis: float
+    savings: float
+    investments: float
+    credit_score: Optional[float]
+    goals: str
+    risk_tolerance: str
+    employment_type: str
+    monthly_insurance_premiums: float
+    loans: list[SavedAssetOut]
+    insurance_policies: list[SavedAssetOut]

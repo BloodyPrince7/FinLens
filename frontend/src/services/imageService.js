@@ -1,18 +1,11 @@
 /**
  * Document text extraction for uploaded financial documents.
  *
- * Images (JPG/JPEG/PNG): real, local, browser-based OCR via Tesseract.js -
- * unchanged from the original implementation, no server round-trip.
- *
- * PDFs: Tesseract.js doesn't handle text-layer PDFs well, so these are sent
- * to the FastAPI backend's PyMuPDF-based extractor instead (see
- * backend/services/pdf_service.py via financeService.uploadDocument).
- *
- * `extractTextFromDocument` is the contract the rest of the app depends on -
- * callers only need the returned shape, not which path produced it.
+ * Files (PDFs and Images): uploaded directly to the backend, where
+ * Gemini Multimodal Vision and PyMuPDF extract accurate financial fields,
+ * tables, and currency data.
  */
 
-import { createWorker } from 'tesseract.js'
 import { uploadDocument } from './financeService'
 
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
@@ -30,45 +23,8 @@ export function validateImageFile(file) {
 }
 
 /**
- * Runs real OCR on the given image file using Tesseract.js (English model,
- * loaded on demand in the browser).
+ * Uploads a document (PDF or image) to the backend for Gemini-powered processing.
  *
- * @param {File} imageFile
- * @param {(percent: number) => void} [onProgress] - 0-100 while recognizing.
- * @returns {Promise<{ text: string, confidence?: number, status: 'success' | 'error', error?: string }>}
- */
-export async function extractTextFromImage(imageFile, onProgress) {
-  let worker
-  try {
-    worker = await createWorker('eng', undefined, {
-      logger: (message) => {
-        if (message.status === 'recognizing text' && onProgress) {
-          onProgress(Math.round(message.progress * 100))
-        }
-      },
-    })
-
-    const result = await worker.recognize(imageFile)
-    const text = result.data.text.trim()
-
-    return {
-      text: text || 'No readable text was found in this image.',
-      confidence: result.data.confidence,
-      status: 'success',
-    }
-  } catch (error) {
-    console.error('[OCR] Tesseract.js failed', error)
-    return {
-      text: '',
-      status: 'error',
-      error: 'We could not extract readable text. Please upload a clearer document.',
-    }
-  } finally {
-    await worker?.terminate()
-  }
-}
-
-/**
  * @param {File} file
  * @param {string} documentType - one of the backend's DocumentType values
  * @param {(percent: number) => void} [onProgress]
@@ -80,26 +36,11 @@ export async function extractTextFromDocument(file, documentType, onProgress) {
     return { status: 'error', error: validationError }
   }
 
-  if (file.type === 'application/pdf') {
-    try {
-      onProgress?.(30)
-      const result = await uploadDocument({ documentType, file })
-      onProgress?.(100)
-      return { status: 'success', text: result.summary || 'Document uploaded.', documentId: result.id }
-    } catch (error) {
-      return {
-        status: 'error',
-        error: error.message || 'Unable to process this document. Please try another file.',
-      }
-    }
-  }
-
-  const ocrResult = await extractTextFromImage(file, onProgress)
-  if (ocrResult.status === 'error') return ocrResult
-
   try {
-    const result = await uploadDocument({ documentType, extractedText: ocrResult.text })
-    return { status: 'success', text: ocrResult.text, documentId: result.id }
+    onProgress?.(30)
+    const result = await uploadDocument({ documentType, file })
+    onProgress?.(100)
+    return { status: 'success', text: result.summary || 'Document uploaded.', documentId: result.id }
   } catch (error) {
     return {
       status: 'error',

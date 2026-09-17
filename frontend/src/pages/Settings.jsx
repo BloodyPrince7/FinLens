@@ -1,6 +1,7 @@
 import { ShieldCheck } from 'lucide-react'
 import { usePageContext } from '../App'
 import { useFinancialTwin } from '../context/FinancialTwinContext'
+import GeminiModelSelector from '../components/GeminiModelSelector'
 
 const PRIVACY_NOTICE =
   'Your Financial Twin data and uploaded document text are stored only in your browser and this ' +
@@ -13,7 +14,7 @@ const DISCLAIMER =
   'or investment recommendations.'
 
 export default function Settings() {
-  const { user } = usePageContext()
+  const { user, geminiModel, setGeminiModel } = usePageContext()
   const { twin, updateTwin } = useFinancialTwin()
 
   return (
@@ -27,6 +28,12 @@ export default function Settings() {
         <p className="text-sm font-semibold text-brand-ink">Account</p>
         <p className="mt-1 text-brand-ink/70">{user?.name}</p>
         <p className="text-sm text-brand-ink/50">{user?.email}</p>
+      </div>
+
+      <div className="rounded-2xl border-2 border-brand-blue-light bg-white p-5">
+        <h2 className="mb-1 font-semibold text-brand-ink">AI model</h2>
+        <p className="mb-3 text-sm text-brand-ink/60">Changes apply immediately to new chats and document analysis.</p>
+        <GeminiModelSelector value={geminiModel} onChange={setGeminiModel} />
       </div>
 
       <div className="rounded-2xl border-2 border-brand-blue-light bg-white p-5">

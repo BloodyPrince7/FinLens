@@ -1,29 +1,62 @@
-/**
- * Mock, client-side-only authentication for this prototype.
- *
- * No backend call is made here on purpose - this iteration is meant to
- * exercise the live Convai character without needing any other service
- * running. Swap the body of `login` for a real backend call (see
- * ../../../backend/routes/auth.py for the FastAPI version already built)
- * once real auth is wired in - callers only depend on the resolved shape.
- */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const TOKEN_KEY = 'finlens_access_token'
 
-const DEMO_USER = {
-  id: 'demo-user-001',
-  name: 'Rahul Sharma',
-  email: 'demo@finlens.ai',
-  password: '123456',
+export function getAccessToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || ''
+  } catch {
+    return ''
+  }
 }
 
-export async function login(email, password) {
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  if (email.trim().toLowerCase() !== DEMO_USER.email || password !== DEMO_USER.password) {
-    throw new Error('Invalid email or password.')
+export function setAccessToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token)
+    else localStorage.removeItem(TOKEN_KEY)
+  } catch {
+    // Authentication still works for the current page when storage is unavailable.
   }
+}
 
-  return {
-    success: true,
-    user: { id: DEMO_USER.id, name: DEMO_USER.name, email: DEMO_USER.email },
+export async function authenticatedFetch(url, options = {}) {
+  const token = getAccessToken()
+  const headers = new Headers(options.headers || {})
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(url, { ...options, headers })
+  if (response.status === 401) {
+    setAccessToken('')
+    window.dispatchEvent(new Event('finlens:unauthorized'))
+  }
+  return response
+}
+
+async function authRequest(path, body) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const data = await response.json().catch(() => null)
+  if (!response.ok) throw new Error(data?.error || 'Authentication failed. Please try again.')
+  setAccessToken(data.access_token)
+  return data
+}
+
+export function login(email, password) {
+  return authRequest('/api/auth/login', { email: email.trim(), password })
+}
+
+export function register(name, email, password) {
+  return authRequest('/api/auth/register', { name: name.trim(), email: email.trim(), password })
+}
+
+export function logout() {
+  const token = getAccessToken()
+  setAccessToken('')
+  if (token) {
+    fetch(`${API_BASE_URL}/api/auth/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {})
   }
 }

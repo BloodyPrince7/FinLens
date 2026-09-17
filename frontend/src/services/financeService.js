@@ -1,3 +1,5 @@
+import { authenticatedFetch } from './apiService'
+
 /**
  * Client-side mirror of backend/services/finance_calculations.py, for
  * instant slider feedback in the What-If Simulator - a network round-trip
@@ -77,19 +79,64 @@ export async function uploadDocument({ documentType, file, extractedText }) {
   if (file) formData.append('file', file)
   if (extractedText) formData.append('extracted_text', extractedText)
 
-  const response = await fetch(`${API_BASE_URL}/api/documents/upload`, { method: 'POST', body: formData })
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/documents/upload`, { method: 'POST', body: formData })
   return parseJsonOrThrow(response, 'Unable to process this document. Please try another file.')
 }
 
 /** Stage 2: run structured financial extraction on an uploaded document. */
-export async function analyzeDocument(documentId) {
+export async function analyzeDocument(documentId, model) {
   const formData = new FormData()
   formData.append('document_id', documentId)
-  const response = await fetch(`${API_BASE_URL}/api/documents/analyze`, { method: 'POST', body: formData })
+  if (model) formData.append('model', model)
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/documents/analyze`, { method: 'POST', body: formData })
   return parseJsonOrThrow(response, 'Unable to analyze this document right now.')
 }
 
 export async function getDocument(documentId) {
-  const response = await fetch(`${API_BASE_URL}/api/documents/${documentId}`)
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/documents/${documentId}`)
   return parseJsonOrThrow(response, 'Document not found.')
+}
+
+export async function getProfile(userId) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/profile/${encodeURIComponent(userId)}`)
+  return parseJsonOrThrow(response, 'Unable to load your financial profile.')
+}
+
+export async function updateProfile(userId, patch) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/profile/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  return parseJsonOrThrow(response, 'Unable to update your financial profile.')
+}
+
+export async function saveProfileAsset(userId, assetType, asset) {
+  const endpoint = assetType === 'loan_agreement' ? 'loans' : 'insurance'
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/profile/${encodeURIComponent(userId)}/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      document_id: asset.id,
+      filename: asset.filename,
+      summary: asset.summary,
+      fields: asset.fields || {},
+      risks: asset.risks || [],
+    }),
+  })
+  return parseJsonOrThrow(response, 'Unable to save this document to your profile.')
+}
+
+export async function downloadDocument(documentId, filename) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/documents/${documentId}/download`)
+  if (!response.ok) return parseJsonOrThrow(response, 'Unable to download this document.')
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename || 'financial-document'
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
 }

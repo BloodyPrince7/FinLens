@@ -1,14 +1,13 @@
-import { AlertTriangle, ShieldAlert, TrendingUp, Upload, Wallet } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, ShieldAlert, Sparkles, TrendingUp, Upload, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { usePageContext } from '../App'
-import CharacterPanel from '../components/CharacterPanel'
 import ChatPanel from '../components/ChatPanel'
-import ConvaiAvatarEmbed from '../components/ConvaiAvatarEmbed'
 import OverviewCard from '../components/OverviewCard'
 import { useFinancialTwin } from '../context/FinancialTwinContext'
-import { buildDynamicContext } from '../services/convaiService'
+import { buildDynamicContext } from '../services/geminiService'
 import { calculateHealthScore } from '../services/financeService'
 import { useFinLensConversation } from '../hooks/useFinLensConversation'
+import { geminiModelLabel } from '../services/geminiModels'
 
 const DISCLAIMER =
   'FinLens AI provides educational financial information and personalized analysis for informational ' +
@@ -16,9 +15,9 @@ const DISCLAIMER =
   'or investment recommendations.'
 
 export default function Dashboard() {
-  const { language } = usePageContext()
+  const { language, user, geminiModel } = usePageContext()
   const { twin, monthlySurplus } = useFinancialTwin()
-  const conversation = useFinLensConversation(language)
+  const conversation = useFinLensConversation(language, geminiModel)
   const health = calculateHealthScore({
     monthlyIncome: twin.monthlyIncome,
     monthlyExpenses: twin.monthlyExpenses,
@@ -33,6 +32,22 @@ export default function Dashboard() {
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-blue-dark via-[#06418c] to-brand-blue p-6 text-white shadow-xl shadow-brand-blue-dark/10 sm:p-8">
+        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full border-[36px] border-white/5" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+              <Sparkles className="h-3.5 w-3.5" /> AI-powered financial intelligence
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Good to see you, {user?.name?.split(' ')[0]}</h1>
+            <p className="mt-2 max-w-2xl text-sm text-white/70 sm:text-base">Your money, documents and financial decisions—understood in one secure place.</p>
+          </div>
+          <Link to="/documents" className="inline-flex w-fit items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-brand-blue-dark shadow-lg hover:bg-cyan-50">
+            Analyze a document <ArrowUpRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
       {conversation.error && (
         <div className="flex items-start gap-2 rounded-xl bg-red-50 p-3 text-red-800" role="alert">
           <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
@@ -48,30 +63,23 @@ export default function Dashboard() {
         <OverviewCard label="Financial Health Score" value={health.score} suffix="/100" tone="brand" />
       </div>
 
-      <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-5">
-        <div className="flex min-h-[420px] flex-col gap-4 lg:col-span-3">
-          <div className="rounded-2xl border-2 border-brand-blue-light bg-white px-4 py-2">
-            <p className="text-lg font-semibold text-brand-ink">Ask FinLens AI</p>
-            <p className="text-sm text-brand-ink/60">Your personal financial guide</p>
+      <div className="min-h-[430px]">
+        <div className="mb-3 flex items-center justify-between rounded-2xl border border-brand-blue-light bg-white px-4 py-3">
+          <div>
+            <p className="text-lg font-semibold text-brand-ink">Ask Gemini about your money</p>
+            <p className="text-sm text-brand-ink/60">Answers include your live profile, loans and insurance context.</p>
           </div>
-          <CharacterPanel
-            status={conversation.status}
-            errorMessage={conversation.error}
-            isMicSupported={conversation.isMicSupported}
-            isMicActive={conversation.isMicActive}
-            onToggleMic={conversation.toggleMic}
-            isSpeechOutputSupported={conversation.isSpeechOutputSupported}
-            onResetConversation={conversation.resetConversation}
-          />
-          <ConvaiAvatarEmbed />
+          <span className="hidden rounded-full bg-brand-blue-light px-3 py-1 text-xs font-semibold text-brand-blue-dark sm:block">Gemini {geminiModelLabel(geminiModel)}</span>
         </div>
-        <div className="min-h-[420px] lg:col-span-2">
-          <ChatPanel
-            messages={conversation.messages}
-            onSendText={handleSendText}
-            disabled={conversation.status === 'thinking'}
-          />
-        </div>
+        <ChatPanel
+          messages={conversation.messages}
+          onSendText={handleSendText}
+          disabled={conversation.status === 'thinking'}
+          isSpeaking={conversation.isSpeaking}
+          onStopSpeaking={conversation.stopSpeaking}
+          isVoiceOutputEnabled={conversation.isVoiceOutputEnabled}
+          onToggleVoiceOutput={conversation.setVoiceOutputEnabled}
+        />
       </div>
 
       <Link

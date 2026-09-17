@@ -1,58 +1,35 @@
-from typing import Literal, Optional
+from fastapi import APIRouter, Depends, HTTPException
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-
-from models.schemas import AssistantAnalyzeResponse
-from services import ai_service, image_service, mock_ocr
+from models.db import User
+from models.schemas import AssistantChatRequest, AssistantChatResponse
+from services import gemini_service
+from services.security import get_current_user
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 
+SAFETY_INSTRUCTION = """You are FinLens AI, a careful and empathetic personal financial assistant.
+Use the supplied user profile and document context to personalize the answer. Explain financial jargon
+in plain language. Never guarantee approval, returns, tax outcomes, or legal outcomes. Do not invent
+facts that are absent from the context. Clearly state uncertainty. Give educational guidance and suggest
+a qualified financial, tax, or legal professional when the decision is high stakes."""
 
-@router.post("/analyze", response_model=AssistantAnalyzeResponse)
-async def analyze(
-    image: Optional[UploadFile] = File(None),
-    question: Optional[str] = Form(None),
-    language: Literal["en", "hi"] = Form(...),
-) -> AssistantAnalyzeResponse:
-    # image/question are Optional at the FastAPI layer on purpose: an empty
-    # multipart field can make Starlette report it as "missing" rather than
-    # empty, which would bypass these checks and return a generic 422
-    # instead of the friendly {"success": false, "error": ...} contract.
-    if not question or not question.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="Please enter a health-related question before asking Sahayak.",
-        )
-    if image is None or not image.filename:
-        raise HTTPException(
-            status_code=400,
-            detail="Please upload an image before asking a question.",
-        )
 
-    stored_path = await image_service.save_uploaded_image(image)
-    try:
-        # Current: Image -> Mock OCR -> Convai
-        # Future:  Image -> Amazon Textract -> Extracted Text -> Amazon Bedrock
-        document_context = mock_ocr.extract_text_from_image(stored_path)
-        answer = await ai_service.generate_response(
-            question=question.strip(),
-            extracted_text=document_context,
-            language=language,
-        )
-    finally:
-        # Medical images are processed in-memory/on-disk only for this request
-        # and are not retained afterwards.
-        image_service.delete_image(stored_path)
-
-    if not answer or not answer.strip():
-        raise HTTPException(
-            status_code=502,
-            detail="Sahayak could not generate a response right now. Please try again.",
-        )
-
-    return AssistantAnalyzeResponse(
-        success=True,
-        language=language,
-        answer=answer,
-        document_context=document_context,
+@router.post("/chat", response_model=AssistantChatResponse)
+async def chat(payload: AssistantChatRequest, user: User = Depends(get_current_user)):
+    language_instruction = (
+        "Respond only in simple Hindi using Devanagari script."
+        if payload.language == "hi"
+        else "Respond only in simple English."
     )
+    prompt = (
+        f"{SAFETY_INSTRUCTION}\n\n{language_instruction}\n\n"
+        f"Authenticated user: {user.name}\n\n"
+        f"Financial context:\n{payload.dynamic_context or 'No additional context provided.'}\n\n"
+        f"User question:\n{payload.question.strip()}"
+    )
+    try:
+        selected_model = gemini_service.resolve_model(payload.model)
+        answer = await gemini_service.generate_text(prompt, model=selected_model)
+    except gemini_service.GeminiUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return AssistantChatResponse(success=True, answer=answer, model=selected_model)
