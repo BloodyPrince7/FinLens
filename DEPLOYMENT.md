@@ -1,4 +1,4 @@
-﻿# FinLens AI Deployment Guide
+# FinLens AI Deployment Guide
 
 FinLens AI consists of two components:
 - **Frontend**: React + Vite + Tailwind CSS (SPA)
