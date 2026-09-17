@@ -37,7 +37,10 @@ async function authRequest(path, body) {
     body: JSON.stringify(body),
   })
   const data = await response.json().catch(() => null)
-  if (!response.ok) throw new Error(data?.error || 'Authentication failed. Please try again.')
+  if (!response.ok) {
+    const message = data?.detail || data?.error || (typeof data === 'string' ? data : null)
+    throw new Error(message || `Authentication failed (${response.status}). Please try again.`)
+  }
   setAccessToken(data.access_token)
   return data
 }
