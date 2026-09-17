@@ -43,6 +43,17 @@ app.include_router(profile.router)
 app.include_router(speech.router)
 
 
+@app.get("/")
+def root():
+    return {
+        "success": True,
+        "message": "FinLens AI Backend API is live.",
+        "docs": "/docs",
+        "health": "/api/health",
+    }
+
+
 @app.get("/api/health")
 def health_check():
     return {"success": True, "message": "FinLens AI backend is running."}
+
