@@ -32,12 +32,13 @@ const EXPERIENCE_ID = import.meta.env.VITE_CONVAI_EXPERIENCE_ID
  * To upgrade later: once domain whitelisting is available (paid plan),
  * replace the iframe with `@convai/experience-embed`'s `PixelStreamComponent`.
  */
-export default function ConvaiAvatarEmbed() {
+export default function ConvaiAvatarEmbed({ experienceId: propId }) {
   const [iframeFailed, setIframeFailed] = useState(false)
+  const activeId = propId || import.meta.env.VITE_CONVAI_EXPERIENCE_ID
 
-  if (!EXPERIENCE_ID) return null
+  if (!activeId) return null
 
-  const shareUrl = `https://x.convai.com/experience/${EXPERIENCE_ID}`
+  const shareUrl = `https://x.convai.com/experience/${activeId}`
 
   return (
     <section className="rounded-2xl border-2 border-brand-blue-light bg-white p-4">
