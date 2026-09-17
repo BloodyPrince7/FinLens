@@ -8,5 +8,14 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    @property
+    def cors_origins(self) -> list[str]:
+        if not self.frontend_url:
+            return ["*"]
+        origins = [u.strip() for u in self.frontend_url.split(",") if u.strip()]
+        if "http://localhost:5173" not in origins:
+            origins.append("http://localhost:5173")
+        return origins
+
 
 settings = Settings()
