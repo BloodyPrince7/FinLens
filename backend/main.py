@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+import re
+
 from config import settings
 from models.db import init_db
 from routes import assistant, auth, documents, finance, profile, speech
@@ -12,6 +14,24 @@ app = FastAPI(
     version="1.0.0",
 )
 
+
+class PathNormalizeMiddleware:
+    """Normalize duplicate slashes (e.g. //api/...) and redundant /api prefixes."""
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http":
+            raw_path = scope.get("path", "")
+            clean = re.sub(r"/+", "/", raw_path)
+            if clean.startswith("/api/api/"):
+                clean = clean[4:]
+            scope["path"] = clean
+            scope["raw_path"] = clean.encode("utf-8")
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(PathNormalizeMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
