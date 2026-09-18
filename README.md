@@ -21,8 +21,8 @@
 | **Interactive API Docs** | [https://finlens-1-7sf7.onrender.com/docs](https://finlens-1-7sf7.onrender.com/docs) | Swagger UI for exploring endpoints |
 
 ### 🔑 Demo Account
-- **Email:** demo@finlens.ai
-- **Password:** 123456
+- **Email:** `demo@finlens.ai`
+- **Password:** `123456`
 - **Preloaded Profile:** Rahul Sharma (Salaried, Monthly Income: ₹70,833, Expenses: ₹32,000, EMIs: ₹14,000)
 
 ---
@@ -36,7 +36,7 @@
 
 ### 2. 🇮🇳 हिंदी में समझें और सुनें (Hindi Document Reading & HD Audio Readout)
 - **Plain Hindi Breakdown:** Automatically transforms dense legal/banking jargon into conversational, everyday Devanagari Hindi.
-- **Universal Voice Output:** Uses server-side Google Text-to-Speech (POST /api/speech/tts) streaming directly to the browser.
+- **Universal Voice Output:** Uses server-side Google Text-to-Speech (`POST /api/speech/tts`) streaming directly to the browser.
 - **Works Everywhere:** Guaranteed audio playback across Windows, macOS, Linux, iOS, and Android — completely bypassing missing OS Hindi voice packs.
 
 ### 3. 👤 3D Conversational Avatar Advisor (Convai)
@@ -52,60 +52,58 @@
 ### 5. 🧠 Multi-Model Gemini Intelligence
 - Powered by Google Gemini (Gemini 3.6 Flash / 2.0 Flash / 1.5 Flash).
 - Automatic model failover logic and structured JSON response parsing.
-- Server-side API key isolation: Your GEMINI_API_KEY never leaks to client-side code.
+- Server-side API key isolation: Your `GEMINI_API_KEY` never leaks to client-side code.
 
 ---
 
 ## 🏛️ System Architecture
 
-`	ext
-       ┌────────────────────────────────────────────────────────┐
-       │             User Browser (PC / Mobile)                 │
-       │    https://www.arvronline.in / https://...vercel.app   │
-       └─────────────────────────┬──────────────────────────────┘
-                                 │
-                 ┌───────────────┴───────────────┐
-                 │                               │
-                 ▼                               ▼
-       ┌───────────────────┐           ┌───────────────────┐
-       │   React 18 + Vite │           │ 3D Convai Avatar  │
-       │  (Vercel Hosting) │           │ (x.convai.com)    │
-       └─────────┬─────────┘           └───────────────────┘
-                 │
-                 │ HTTPS / REST (JWT Bearer Auth)
-                 ▼
-       ┌────────────────────────────────────────────────────────┐
-       │          FastAPI Cloud Service (Render)                │
-       │      - Dynamic CORS & ASGI Path Normalization          │
-       │      - Session & User Auth Management                  │
-       │      - SQLite Persistence via SQLAlchemy               │
-       │      - Financial Math (EMI, DTI, Health Scoring)       │
-       └──────────────┬──────────────────────────┬──────────────┘
-                      │                          │
-                      ▼                          ▼
-       ┌────────────────────────┐      ┌────────────────────────┐
-       │   Google Gemini API    │      │  Google TTS Streaming  │
-       │ (Document Insights     │      │ (Server-side HD Hindi  │
-       │  & Hindi Explanations) │      │  Voice Synthesis)      │
-       └────────────────────────┘      └────────────────────────┘
-`
+```mermaid
+flowchart TD
+    User["🌐 User Browser (PC / Mobile)<br/>https://www.arvronline.in"]
+    
+    subgraph FrontendApp ["Frontend (Vercel)"]
+        UI["React 18 + Vite SPA"]
+        LocalAudio["Web Speech API"]
+    end
+
+    subgraph ConvaiService ["3D Advisory"]
+        Convai["Convai 3D Avatar<br/>(x.convai.com)"]
+    end
+
+    subgraph BackendApp ["Backend (Render)"]
+        FastAPI["FastAPI Application"]
+        Middlewares["CORS & Path Normalization"]
+        TwinEngine["Financial Twin & Math Engine"]
+        DB[(SQLite Persistence)]
+    end
+
+    subgraph AIServices ["AI Services"]
+        Gemini["Google Gemini 3.6 / 2.0<br/>(Document Vision & Hindi Insights)"]
+        GoogleTTS["Google TTS Stream<br/>(HD Voice Audio)"]
+    end
+
+    User --> UI
+    User -.-> Convai
+    UI -->|REST / JWT Bearer| FastAPI
+    UI --> LocalAudio
+    FastAPI --> Middlewares
+    FastAPI --> TwinEngine
+    FastAPI --> DB
+    FastAPI --> Gemini
+    FastAPI --> GoogleTTS
+```
 
 ---
 
 ## 📁 Repository Structure
 
-`	ext
+```text
 FinLens/
 ├── backend/
 │   ├── data/                 # SQLite database & demo seed data
 │   ├── models/               # SQLAlchemy models & Pydantic schemas
-│   ├── routes/               # API endpoints
-│   │   ├── assistant.py      # Multimodal Gemini Q&A
-│   │   ├── auth.py           # Authentication & session tokens
-│   │   ├── documents.py      # Document upload, OCR & Hindi analysis
-│   │   ├── finance.py        # Health score, twin & What-If simulator
-│   │   ├── profile.py        # User profile & financial twin endpoints
-│   │   └── speech.py         # Google TTS server streaming endpoint
+│   ├── routes/               # API routes (auth, documents, finance, speech)
 │   ├── services/             # Gemini SDK, PDF parser, calculations
 │   ├── config.py             # App settings & CORS resolution
 │   ├── main.py               # FastAPI entry point & ASGI middlewares
@@ -115,8 +113,8 @@ FinLens/
 │   ├── src/
 │   │   ├── components/       # UI cards, headers, speech controls
 │   │   ├── context/          # Financial twin state provider
-│   │   ├── pages/            # Dashboard, Documents, Advisor, Insights, Login
-│   │   ├── services/         # API client, Gemini, Speech & Finance services
+│   │   ├── pages/            # Dashboard, Documents, Advisor, etc.
+│   │   ├── services/         # API client, Gemini, Speech & Finance
 │   │   ├── App.jsx           # Routing & layout wrapper
 │   │   └── main.jsx          # React DOM entry point
 │   ├── vercel.json           # Vercel SPA routing rules
@@ -124,7 +122,7 @@ FinLens/
 │   └── .env.example          # Frontend environment template
 ├── render.yaml               # Render Infrastructure Blueprint
 └── README.md                 # Project documentation
-`
+```
 
 ---
 
@@ -132,15 +130,14 @@ FinLens/
 
 ### Prerequisites
 - **Python 3.11+** installed
-- **Node.js 18+** and 
-pm installed
+- **Node.js 18+** and **npm** installed
 - A **Google Gemini API Key** from [Google AI Studio](https://aistudio.google.com/)
 
 ---
 
 ### Step 1: Backend Setup
 
-`ash
+```bash
 # 1. Open a terminal and navigate to backend
 cd backend
 
@@ -161,14 +158,14 @@ cp .env.example .env
 
 # 5. Start the FastAPI server
 uvicorn main:app --reload --port 8000
-`
-Backend API will be running at http://localhost:8000 (Docs at http://localhost:8000/docs).
+```
+Backend API will be running at `http://localhost:8000` (Docs at `http://localhost:8000/docs`).
 
 ---
 
 ### Step 2: Frontend Setup
 
-`ash
+```bash
 # 1. Open a second terminal and navigate to frontend
 cd frontend
 
@@ -180,25 +177,25 @@ cp .env.example .env
 
 # 4. Start Vite development server
 npm run dev
-`
-Frontend will be running at http://localhost:5173.
+```
+Frontend will be running at `http://localhost:5173`.
 
 ---
 
 ## ⚙️ Environment Variables Reference
 
-### Backend (ackend/.env)
+### Backend (`backend/.env`)
 | Variable | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
-| GEMINI_API_KEY | **Yes** | — | Google Gemini API Key from Google AI Studio |
-| GEMINI_MODEL | No | gemini-3.6-flash | Gemini model name (gemini-2.0-flash, etc.) |
-| FRONTEND_URL | No | http://localhost:5173 | Allowed origins for CORS (comma-separated) |
+| `GEMINI_API_KEY` | **Yes** | — | Google Gemini API Key from Google AI Studio |
+| `GEMINI_MODEL` | No | `gemini-3.6-flash` | Gemini model name (`gemini-2.0-flash`, etc.) |
+| `FRONTEND_URL` | No | `http://localhost:5173` | Allowed origins for CORS (comma-separated) |
 
-### Frontend (rontend/.env or Vercel Environment Variables)
+### Frontend (`frontend/.env` or Vercel Environment Variables)
 | Variable | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
-| VITE_API_BASE_URL | No | http://localhost:8000 | Backend API URL (e.g. https://finlens-1-7sf7.onrender.com) |
-| VITE_CONVAI_EXPERIENCE_ID | No | — | Convai 3D avatar Experience ID *(can also be entered in the UI)* |
+| `VITE_API_BASE_URL` | No | `http://localhost:8000` | Backend API URL (e.g. `https://finlens-1-7sf7.onrender.com`) |
+| `VITE_CONVAI_EXPERIENCE_ID` | No | — | Convai 3D avatar Experience ID *(can also be entered in the UI)* |
 
 ---
 
@@ -206,21 +203,21 @@ Frontend will be running at http://localhost:5173.
 
 ### Frontend (Vercel)
 1. Import repository on [Vercel](https://vercel.com).
-2. Set **Root Directory** to rontend.
+2. Set **Root Directory** to `frontend`.
 3. Add Environment Variable:
-   - VITE_API_BASE_URL = https://finlens-1-7sf7.onrender.com
-4. Deploy! Rewrites are handled automatically via rontend/vercel.json.
+   - `VITE_API_BASE_URL` = `https://finlens-1-7sf7.onrender.com`
+4. Deploy! Rewrites are handled automatically via `frontend/vercel.json`.
 
 ### Backend (Render)
 1. Create a new **Web Service** on [Render](https://render.com).
-2. Set **Root Directory** to ackend.
-3. Set **Build Command:** pip install -r requirements.txt.
-4. Set **Start Command:** uvicorn main:app --host 0.0.0.0 --port .
-5. Add Environment Variables: GEMINI_API_KEY, PYTHON_VERSION=3.11.9.
+2. Set **Root Directory** to `backend`.
+3. Set **Build Command:** `pip install -r requirements.txt`.
+4. Set **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`.
+5. Add Environment Variables: `GEMINI_API_KEY`, `PYTHON_VERSION=3.11.9`.
 
 ### Custom Domain (GoDaddy DNS)
-- **A Record:** @ ➔ 76.76.21.21 (Vercel)
-- **CNAME Record:** www ➔ cname.vercel-dns.com (Vercel)
+- **A Record:** `@` ➔ `76.76.21.21` (Vercel)
+- **CNAME Record:** `www` ➔ `cname.vercel-dns.com` (Vercel)
 - Remove any existing HTTP Forwarding rules in GoDaddy so root and subdomains route cleanly to Vercel.
 
 ---
