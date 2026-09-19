@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
-import { FileText, ImageUp, Sparkles, Upload, X } from 'lucide-react'
+import { Camera, FileText, Sparkles, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { validateImageFile } from '../services/imageService'
+import DocumentCameraModal from './DocumentCameraModal'
 
 export default function ImageUploader({
   image,
@@ -15,6 +16,7 @@ export default function ImageUploader({
 }) {
   const inputRef = useRef(null)
   const [isDragActive, setIsDragActive] = useState(false)
+  const [isCameraOpen, setIsCameraOpen] = useState(false)
 
   function validateAndSelect(file) {
     if (!file) return
@@ -95,33 +97,58 @@ export default function ImageUploader({
   }
 
   return (
-    <motion.button
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.99 }}
-      type="button"
-      onClick={() => inputRef.current?.click()}
+    <div
       onDragOver={(event) => {
         event.preventDefault()
         setIsDragActive(true)
       }}
       onDragLeave={() => setIsDragActive(false)}
       onDrop={handleDrop}
-      className={`group flex w-full flex-col items-center justify-center gap-3.5 rounded-3xl border-2 border-dashed p-10 text-center transition-all ${
+      className={`group relative flex w-full flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed p-8 sm:p-10 text-center transition-all ${
         isDragActive
           ? 'border-[#00baf2] bg-[#e7f6fd]'
           : 'border-[#00baf2]/40 bg-white hover:border-[#00baf2] hover:bg-[#f8fbfe] hover:shadow-md hover:shadow-[#00baf2]/10'
       }`}
     >
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002970] to-[#00baf2] text-white shadow-md shadow-[#002970]/20 transition-transform group-hover:scale-110">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002970] to-[#00baf2] text-white shadow-md shadow-[#002970]/20 transition-transform group-hover:scale-105">
         <Upload className="h-8 w-8" />
       </div>
+
       <div>
         <p className="text-base font-black text-[#002970]">
-          Drag &amp; drop document, or <span className="text-[#00baf2] underline underline-offset-4">browse files</span>
+          Upload or Scan Your Financial Document
         </p>
         <p className="mt-1 text-xs font-semibold text-[#64748b]">
-          Supports PDF agreements, ITR receipts, salary slips, and JPEG / PNG images up to 10 MB
+          Supports PDF agreements, ITR receipts, salary slips, or camera photos up to 10 MB
         </p>
+      </div>
+
+      {/* Dual Upload Options: Browse Files & Scan with Camera */}
+      <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="inline-flex items-center gap-2 rounded-2xl border border-[#e3edf7] bg-white px-5 py-3 text-xs font-extrabold text-[#002970] shadow-xs transition-all hover:border-[#00baf2] hover:bg-[#f0f7fd]"
+        >
+          <Upload className="h-4 w-4 text-[#00baf2]" />
+          <span>Browse Files</span>
+        </motion.button>
+
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          type="button"
+          onClick={() => setIsCameraOpen(true)}
+          className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#002970] via-[#0041a8] to-[#00baf2] px-5 py-3 text-xs font-extrabold text-white shadow-md shadow-[#002970]/20 transition-all hover:shadow-lg hover:shadow-[#002970]/30"
+        >
+          <Camera className="h-4 w-4" />
+          <span>Scan with Camera</span>
+          <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+            Live
+          </span>
+        </motion.button>
       </div>
 
       <div className="flex items-center gap-2 rounded-full bg-[#f0f7fd] px-3.5 py-1 text-[11px] font-bold text-[#002970]">
@@ -129,6 +156,7 @@ export default function ImageUploader({
         <span>PyMuPDF Text Extraction &amp; Gemini Multimodal Vision</span>
       </div>
 
+      {/* Hidden file input */}
       <input
         ref={inputRef}
         type="file"
@@ -136,6 +164,14 @@ export default function ImageUploader({
         className="hidden"
         onChange={(event) => validateAndSelect(event.target.files?.[0])}
       />
-    </motion.button>
+
+      {/* Interactive Document Camera Scanner Modal */}
+      <DocumentCameraModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={validateAndSelect}
+        onError={onError}
+      />
+    </div>
   )
 }
