@@ -99,86 +99,58 @@ The following sequence details how FinLens processes user inputs, documents, AI 
 
 ```mermaid
 flowchart TD
-    %% Actors
-    User["👤 User - Browser or Mobile"]
+    %% Styling Classes
+    classDef client fill:#EBF5FF,stroke:#002970,stroke-width:2px,color:#002970;
+    classDef backend fill:#F0FDF4,stroke:#00875A,stroke-width:2px,color:#005A36;
+    classDef intelligence fill:#FAF5FF,stroke:#7B2CBF,stroke-width:2px,color:#5B1B8C;
+    classDef outcome fill:#FFF7ED,stroke:#C2410C,stroke-width:2px,color:#9A3412;
 
-    %% Frontend Subsystem
-    subgraph Frontend ["Frontend Application - React 18 and Vite"]
-        UI["Web Interface and Navigation"]
-        TesseractOCR["Client OCR - Tesseract.js"]
-        DocHistory["Document History and Filter Manager"]
-        TwinUI["Financial Twin and What-If Simulator"]
-        AudioPlayer["HTML5 HD Audio Player"]
-        ConvaiWidget["Convai 3D Avatar Component"]
+    subgraph STAGE1 ["1. INPUT & INGESTION"]
+        direction LR
+        U_DOC["📄 Documents<br/>Loan, ITR, Salary, Policy"]:::client
+        U_OCR["⚡ Client OCR<br/>Tesseract.js Engine"]:::client
+        U_QUERY["🎙️ User Queries<br/>Voice & Text Chat"]:::client
     end
 
-    %% Backend Gateway
-    subgraph BackendGateway ["Backend API Gateway - FastAPI"]
-        Router["Path Normalizer and CORS Middleware"]
-        AuthService["JWT Bearer Authentication"]
-        DocRoutes["Document Management Router"]
-        ProfileRoutes["Financial Profile and Twin Router"]
-        AssistantRoutes["AI Assistant Chat Router"]
-        SpeechRoutes["Speech and Audio Stream Router"]
+    subgraph STAGE2 ["2. BACKEND PROCESSING & SECURITY"]
+        direction LR
+        B_API["🚀 FastAPI Gateway<br/>JWT Auth & Routing"]:::backend
+        B_PDF["📑 PyMuPDF Parser<br/>Lossless Digital Extraction"]:::backend
+        B_DB[("💾 SQLite Database<br/>Profiles, Assets & Binaries")]:::backend
     end
 
-    %% Storage Layer
-    subgraph Storage ["Persistence Layer - SQLite"]
-        DBUser[("Users and Profiles DB")]
-        DBDoc[("Document Metadata and Text DB")]
-        DBBinary[("Original File Binaries DB")]
-        DBAssets[("Loans and Policies DB")]
+    subgraph STAGE3 ["3. AI INTELLIGENCE & KNOWLEDGE MEMORY"]
+        direction LR
+        AI_GEMINI["✨ Google Gemini 3.8 / 3.6<br/>Vision & Financial Reasoning"]:::intelligence
+        AI_COGNEE["🧠 Cognee AI Memory<br/>Knowledge Graph & Vectors"]:::intelligence
+        AI_TTS["🔊 Google Text-to-Speech<br/>Devanagari Hindi Voice"]:::intelligence
     end
 
-    %% Intelligence Layer
-    subgraph IntelligenceLayer ["AI and Memory Services"]
-        PyMuPDF["PyMuPDF Native Text Parser"]
-        GeminiEngine["Google Gemini 3.8 and 3.6 Vision and LLM"]
-        CogneeMem["Cognee Financial Memory - Graph and Vectors"]
-        GoogleTTS["Google Text-to-Speech Engine - gTTS"]
-        ConvaiCloud["Convai 3D Conversational Cloud"]
+    subgraph STAGE4 ["4. ACTIONABLE FINANCIAL OUTPUTS"]
+        direction LR
+        OUT_TWIN["📊 Financial Twin<br/>Health Score & Simulator"]:::outcome
+        OUT_CHAT["💬 Grounded AI Assistant<br/>Cross-Doc Q&A Context"]:::outcome
+        OUT_AUDIO["🇮🇳 Hindi Audio Hub<br/>Jargon-Free MP3 Readout"]:::outcome
+        OUT_AVATAR["👤 3D Convai Avatar<br/>Interactive Voice Advisory"]:::outcome
     end
 
-    %% Ingestion Flow
-    User -->|1. Upload PDF or Image| UI
-    UI -->|Local Image OCR| TesseractOCR
-    UI -->|Multipart Upload| DocRoutes
-    DocRoutes -->|Native PDF Extraction| PyMuPDF
-    DocRoutes -->|Store Metadata| DBDoc
-    DocRoutes -->|Store Binary File| DBBinary
+    %% Balanced Pipeline Flow
+    U_DOC -->|Native PDF| B_API
+    U_DOC -->|Scanned Image| U_OCR
+    U_OCR -->|Extracted Text| B_API
+    U_QUERY -->|Prompt / Query| B_API
 
-    %% Analysis Flow
-    UI -->|2. Trigger Analysis Request| DocRoutes
-    DocRoutes -->|Analyze Text and Binary| GeminiEngine
-    GeminiEngine -->|Structured JSON Fields and Risks| DocRoutes
-    DocRoutes -->|Persist Extraction| DBDoc
-    DocRoutes -.->|3. Async Background Task| CogneeMem
-    CogneeMem -->|Index Chunks and Graph Relations| CogneeMem
+    B_API --> B_PDF
+    B_API --> B_DB
+    B_API -->|Analyze Content| AI_GEMINI
+    B_API -.->|Async Graph Indexing| AI_COGNEE
+    B_API -->|Hindi Voice Conversion| AI_TTS
 
-    %% Hindi and Audio Flow
-    UI -->|4. Request Hindi Breakdown| DocRoutes
-    DocRoutes -->|Devanagari Translation Prompt| GeminiEngine
-    DocRoutes --> SpeechRoutes
-    SpeechRoutes -->|Synthesize Voice| GoogleTTS
-    GoogleTTS -->|Stream MP3 Audio| AudioPlayer
-
-    %% Twin and Simulation Flow
-    UI -->|5. Save Extracted Loan or Policy| ProfileRoutes
-    ProfileRoutes -->|Update Financial Assets| DBAssets
-    ProfileRoutes -->|Recalculate Health Score and DTI| DBUser
-    TwinUI -->|6. What-If Scenario Simulations| ProfileRoutes
-    ProfileRoutes -->|Updated Telemetry| TwinUI
-
-    %% Advisory and Chat Flow
-    UI -->|7. Multi-Document Questions| AssistantRoutes
-    AssistantRoutes -->|Retrieve Context Chunks| CogneeMem
-    AssistantRoutes -->|Grounded Advice Generation| GeminiEngine
-    GeminiEngine -->|Personalized Guidance| UI
-
-    %% Convai Flow
-    User -->|8. Live Voice Consultation| ConvaiWidget
-    ConvaiWidget -->|WebRTC Voice and Lip-Sync| ConvaiCloud
-    ConvaiCloud -->|Audio and Avatar Stream| ConvaiWidget
+    AI_GEMINI -->|Monetary Fields & Risks| OUT_TWIN
+    AI_COGNEE -->|Semantic Memory Chunks| OUT_CHAT
+    AI_GEMINI -->|Contextual Reasoning| OUT_CHAT
+    AI_TTS -->|Streamed Audio| OUT_AUDIO
+    U_QUERY <-->|WebRTC Voice Stream| OUT_AVATAR
 ```
 
 ### Detailed Workflow Stages
@@ -242,38 +214,44 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Client["Client Devices - Desktop and Mobile Browser"]
+    classDef client fill:#EBF5FF,stroke:#002970,stroke-width:2px,color:#002970;
+    classDef front fill:#EFF6FF,stroke:#00BAF2,stroke-width:2px,color:#0041A8;
+    classDef back fill:#F0FDF4,stroke:#00875A,stroke-width:2px,color:#005A36;
+    classDef ai fill:#FAF5FF,stroke:#7B2CBF,stroke-width:2px,color:#5B1B8C;
+    classDef cloud fill:#FFF7ED,stroke:#C2410C,stroke-width:2px,color:#9A3412;
+
+    Client["📱 Desktop & Mobile Browser"]:::client
 
     subgraph FrontendApp ["Frontend Architecture - Vercel"]
-        ReactUI["React 18 SPA - Vite and Tailwind CSS"]
-        Context["Financial Twin Context State"]
-        ClientOCR["Tesseract.js Optical Engine"]
-        ConvaiSDK["Convai 3D Web SDK"]
+        ReactUI["React 18 SPA - Vite & Tailwind CSS"]:::front
+        Context["Financial Twin State Context"]:::front
+        ClientOCR["Tesseract.js OCR Engine"]:::front
+        ConvaiSDK["Convai 3D Web SDK"]:::front
     end
 
     subgraph BackendApp ["Backend Cloud Architecture - Render"]
-        FastAPI["FastAPI Application"]
-        Middleware["Path Normalizer and CORS Middleware"]
-        TwinEngine["Financial Math and Scoring Engine"]
-        StorageEngine["Document Binary and Metadata Manager"]
-        SQLite[("SQLite Database")]
+        FastAPI["FastAPI API Gateway"]:::back
+        Middleware["CORS & Path Normalizer"]:::back
+        TwinEngine["Financial Math & Scoring Engine"]:::back
+        StorageEngine["Document Binary & Metadata Manager"]:::back
+        SQLite[("SQLite Database")]:::back
     end
 
-    subgraph AIAndMemory ["AI and Intelligence Engine"]
-        Gemini["Google Gemini 3.8 / 3.6 / 3.5 Models"]
-        Cognee["Cognee Financial Memory - Graph and Vectors"]
-        TTS["Google TTS Audio Streamer"]
+    subgraph AIAndMemory ["AI & Intelligence Engine"]
+        Gemini["Google Gemini 3.8 / 3.6 Flash"]:::ai
+        Cognee["Cognee AI Memory - Graph & Vectors"]:::ai
+        TTS["Google Text-to-Speech Engine"]:::ai
     end
 
     subgraph ExternalAdvisory ["3D Conversational Advisory"]
-        ConvaiServer["Convai 3D Conversational Cloud Engine"]
+        ConvaiServer["Convai 3D Cloud Engine"]:::cloud
     end
 
     Client --> ReactUI
     ReactUI --> ClientOCR
     ReactUI --> Context
     ReactUI --> ConvaiSDK
-    ConvaiSDK -->|Real-Time Voice and Lip-Sync| ConvaiServer
+    ConvaiSDK -->|Real-Time Voice & Lip-Sync| ConvaiServer
     ConvaiServer -->|Interactive Avatar Stream| ConvaiSDK
 
     ReactUI -->|REST API with JWT Bearer| FastAPI
@@ -283,8 +261,8 @@ flowchart TD
     StorageEngine --> SQLite
     TwinEngine --> SQLite
 
-    FastAPI -->|Multimodal Extraction and Explanations| Gemini
-    FastAPI -->|Async Knowledge Graph and Vectors| Cognee
+    FastAPI -->|Multimodal Extraction & Vision| Gemini
+    FastAPI -->|Async Knowledge Graph & LanceDB| Cognee
     FastAPI -->|HD Audio MP3 Streaming| TTS
 ```
 

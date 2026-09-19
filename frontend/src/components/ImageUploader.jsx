@@ -1,4 +1,5 @@
-import { FileText, ImageUp, Upload, X } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { FileText, ImageUp, Sparkles, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { validateImageFile } from '../services/imageService'
 
@@ -34,11 +35,14 @@ export default function ImageUploader({
   if (image) {
     const isPdf = image.file.type === 'application/pdf'
     return (
-      <div className="rounded-xl border-2 border-brand-green bg-brand-green-light p-3">
+      <div className="relative overflow-hidden rounded-3xl border border-[#00baf2]/50 bg-gradient-to-br from-white to-[#f0f7fd] p-5 shadow-sm">
+        {/* Animated scanning laser line when processing */}
+        {isProcessing && <div className="animate-laser-scan" />}
+
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#e3edf7] bg-white shadow-xs">
             {isPdf ? (
-              <FileText className="h-7 w-7 text-brand-blue-dark" aria-hidden="true" />
+              <FileText className="h-8 w-8 text-[#002970]" aria-hidden="true" />
             ) : (
               <img
                 src={image.previewUrl}
@@ -47,35 +51,41 @@ export default function ImageUploader({
               />
             )}
           </div>
-          <div className="flex-1">
-            <p className="truncate text-base font-medium text-brand-ink">{image.file.name}</p>
-            <p className="text-sm text-brand-ink/70">
-              {isProcessing ? statusLabel || `Reading document... ${ocrProgress}%` : 'Shared with FinLens AI'}
+          <div className="flex-1 min-w-0">
+            <p className="truncate text-base font-extrabold text-[#002970]">{image.file.name}</p>
+            <p className="text-xs font-semibold text-[#64748b]">
+              {isProcessing ? statusLabel || `Reading document... ${ocrProgress}%` : 'Uploaded to FinLens AI Engine'}
             </p>
+            {isProcessing && (
+              <div className="mt-2 flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#e3edf7]">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-[#002970] to-[#00baf2]"
+                    initial={{ width: '15%' }}
+                    animate={{ width: `${Math.max(20, ocrProgress)}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+                <span className="text-[10px] font-bold text-[#00baf2]">Processing</span>
+              </div>
+            )}
           </div>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             type="button"
             onClick={onRemove}
             aria-label="Remove uploaded document"
-            className="rounded-full p-2 text-brand-ink/70 hover:bg-white hover:text-red-600"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-[#64748b] shadow-xs transition-colors hover:bg-red-50 hover:text-red-600"
           >
             <X className="h-5 w-5" />
-          </button>
+          </motion.button>
         </div>
 
-        {isProcessing && (
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white">
-            <div
-              className="h-full rounded-full bg-brand-blue transition-all"
-              style={{ width: `${ocrProgress}%` }}
-            />
-          </div>
-        )}
-
         {!isProcessing && extractedText && (
-          <div className="mt-3 rounded-lg bg-white p-3">
-            <p className="mb-1 text-sm font-semibold text-brand-ink">Extracted text</p>
-            <p className="max-h-32 overflow-y-auto whitespace-pre-wrap text-sm text-brand-ink/80">
+          <div className="mt-3.5 rounded-2xl border border-[#e3edf7] bg-white p-3.5">
+            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[#002970]">Extracted Text Preview</p>
+            <p className="max-h-28 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-[#334155]">
               {extractedText}
             </p>
           </div>
@@ -85,7 +95,9 @@ export default function ImageUploader({
   }
 
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
       type="button"
       onClick={() => inputRef.current?.click()}
       onDragOver={(event) => {
@@ -94,26 +106,36 @@ export default function ImageUploader({
       }}
       onDragLeave={() => setIsDragActive(false)}
       onDrop={handleDrop}
-      className={`flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-        isDragActive ? 'border-brand-blue bg-brand-blue-light' : 'border-brand-blue-dark/40 bg-white'
+      className={`group flex w-full flex-col items-center justify-center gap-3.5 rounded-3xl border-2 border-dashed p-10 text-center transition-all ${
+        isDragActive
+          ? 'border-[#00baf2] bg-[#e7f6fd]'
+          : 'border-[#00baf2]/40 bg-white hover:border-[#00baf2] hover:bg-[#f8fbfe] hover:shadow-md hover:shadow-[#00baf2]/10'
       }`}
     >
-      <ImageUp className="h-10 w-10 text-brand-blue" aria-hidden="true" />
-      <span className="text-base font-medium text-brand-ink">
-        Upload ITR, bank statements, loan agreements, or financial documents
-      </span>
-      <span className="text-sm text-brand-ink/60">Supported formats: PDF, JPG, JPEG, PNG</span>
-      <span className="inline-flex items-center gap-2 rounded-lg bg-brand-blue px-4 py-2 text-sm font-semibold text-white">
-        <Upload className="h-4 w-4" aria-hidden="true" />
-        Upload Document
-      </span>
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002970] to-[#00baf2] text-white shadow-md shadow-[#002970]/20 transition-transform group-hover:scale-110">
+        <Upload className="h-8 w-8" />
+      </div>
+      <div>
+        <p className="text-base font-black text-[#002970]">
+          Drag &amp; drop document, or <span className="text-[#00baf2] underline underline-offset-4">browse files</span>
+        </p>
+        <p className="mt-1 text-xs font-semibold text-[#64748b]">
+          Supports PDF agreements, ITR receipts, salary slips, and JPEG / PNG images up to 10 MB
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2 rounded-full bg-[#f0f7fd] px-3.5 py-1 text-[11px] font-bold text-[#002970]">
+        <Sparkles className="h-3 w-3 text-[#00baf2]" />
+        <span>PyMuPDF Text Extraction &amp; Gemini Multimodal Vision</span>
+      </div>
+
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/jpg,image/png,application/pdf"
+        accept="application/pdf,image/jpeg,image/png,image/jpg"
         className="hidden"
         onChange={(event) => validateAndSelect(event.target.files?.[0])}
       />
-    </button>
+    </motion.button>
   )
 }

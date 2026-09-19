@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Legend, Pie, PieChart, Cell, Tooltip, XAxis, YAxis } from 'recharts'
+import { motion } from 'framer-motion'
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useFinancialTwin } from '../context/FinancialTwinContext'
 import {
-  AFFORDABILITY_COLOR,
   calculateAffordability,
   calculateDti,
   calculateEmi,
@@ -12,9 +12,11 @@ import {
 function Slider({ label, value, onChange, min, max, step, format }) {
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-sm">
-        <label className="font-semibold text-brand-ink">{label}</label>
-        <span className="text-brand-blue-dark">{format ? format(value) : value}</span>
+      <div className="mb-1.5 flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+        <label className="text-[#002970]">{label}</label>
+        <span className="rounded-md bg-[#f0f7fd] px-2 py-0.5 font-mono text-xs font-bold text-[#00baf2]">
+          {format ? format(value) : value}
+        </span>
       </div>
       <input
         type="range"
@@ -23,7 +25,7 @@ function Slider({ label, value, onChange, min, max, step, format }) {
         step={step}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="w-full accent-brand-blue-dark"
+        className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-[#e3edf7] accent-[#002970] focus:outline-none"
       />
     </div>
   )
@@ -31,11 +33,11 @@ function Slider({ label, value, onChange, min, max, step, format }) {
 
 export default function Simulator() {
   const { twin } = useFinancialTwin()
-  const [income, setIncome] = useState(twin.monthlyIncome)
-  const [expenses, setExpenses] = useState(twin.monthlyExpenses)
-  const [rate, setRate] = useState(12)
+  const [income, setIncome] = useState(twin.monthlyIncome || 70000)
+  const [expenses, setExpenses] = useState(twin.monthlyExpenses || 30000)
+  const [rate, setRate] = useState(10.5)
   const [tenure, setTenure] = useState(48)
-  const [existingEmi, setExistingEmi] = useState(twin.existingEmis)
+  const [existingEmi, setExistingEmi] = useState(twin.existingEmis || 10000)
   const [loanAmount, setLoanAmount] = useState(500000)
   const [prepayment, setPrepayment] = useState(0)
 
@@ -47,125 +49,156 @@ export default function Simulator() {
   const effectiveTenure = prepayment > 0 ? Math.max(1, Math.round((loanAmount / (emi + prepayment)) * 1)) : tenure
 
   const cashFlowData = [
-    { name: 'Income', value: income },
-    { name: 'Expenses', value: expenses },
-    { name: 'EMIs', value: existingEmi + emi },
-    { name: 'Surplus', value: Math.max(0, surplus) },
+    { name: 'Income', value: income, fill: '#00b368' },
+    { name: 'Living Exp', value: expenses, fill: '#64748b' },
+    { name: 'Total EMIs', value: existingEmi + emi, fill: '#f59e0b' },
+    { name: 'Surplus', value: Math.max(0, surplus), fill: '#00baf2' },
   ]
   const principalVsInterest = [
-    { name: 'Principal', value: loanAmount, fill: '#007bff' },
+    { name: 'Principal', value: loanAmount, fill: '#002970' },
     { name: 'Interest', value: totalInterest, fill: '#00baf2' },
   ]
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
+    <motion.main
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 py-6"
+    >
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">What If?</h1>
-        <p className="text-brand-ink/60">
-          Adjust income, expenses, and loan terms to instantly see the impact - no data leaves your browser.
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-black text-[#002970]">Paytm What-If Life Simulator</h1>
+          <span className="rounded-full bg-[#f0f7fd] px-2.5 py-0.5 text-xs font-bold text-[#002970]">
+            Interactive Sandbox
+          </span>
+        </div>
+        <p className="mt-1 text-xs font-medium text-[#64748b]">
+          Test new loans, interest rates, salary hikes, or prepayments with real-time affordability calculations.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="space-y-5 rounded-2xl border-2 border-brand-blue-light bg-white p-5">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Left Slider Controls */}
+        <div className="space-y-4 rounded-3xl border border-[#e3edf7] bg-white p-6 shadow-xs lg:col-span-6">
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-[#002970]">Scenario Controls</h2>
           <Slider
-            label="Monthly Income"
+            label="Monthly Gross Income"
             value={income}
             onChange={setIncome}
             min={10000}
+            max={500000}
+            step={2000}
+            format={(v) => `₹${v.toLocaleString('en-IN')}`}
+          />
+          <Slider
+            label="Monthly Non-Discretionary Expenses"
+            value={expenses}
+            onChange={setExpenses}
+            min={0}
             max={300000}
             step={1000}
             format={(v) => `₹${v.toLocaleString('en-IN')}`}
           />
           <Slider
-            label="Monthly Expenses"
-            value={expenses}
-            onChange={setExpenses}
-            min={0}
-            max={200000}
-            step={500}
-            format={(v) => `₹${v.toLocaleString('en-IN')}`}
-          />
-          <Slider
-            label="Existing EMI"
+            label="Current Existing EMIs"
             value={existingEmi}
             onChange={setExistingEmi}
             min={0}
-            max={100000}
-            step={500}
+            max={150000}
+            step={1000}
             format={(v) => `₹${v.toLocaleString('en-IN')}`}
           />
           <Slider
-            label="New Loan Amount"
+            label="Prospective Loan Principal"
             value={loanAmount}
             onChange={setLoanAmount}
-            min={50000}
-            max={5000000}
-            step={10000}
+            min={25000}
+            max={10000000}
+            step={25000}
             format={(v) => `₹${v.toLocaleString('en-IN')}`}
           />
-          <Slider label="Interest Rate" value={rate} onChange={setRate} min={5} max={24} step={0.25} format={(v) => `${v}%`} />
-          <Slider label="Loan Tenure" value={tenure} onChange={setTenure} min={6} max={360} step={6} format={(v) => `${v} months`} />
+          <Slider label="Annual Interest Rate" value={rate} onChange={setRate} min={4} max={28} step={0.25} format={(v) => `${v}% p.a.`} />
+          <Slider label="Repayment Tenure" value={tenure} onChange={setTenure} min={6} max={360} step={6} format={(v) => `${v} months (${Math.round(v/12)} yrs)`} />
           <Slider
-            label="Additional Monthly Prepayment"
+            label="Monthly Extra Prepayment"
             value={prepayment}
             onChange={setPrepayment}
             min={0}
-            max={20000}
-            step={500}
+            max={50000}
+            step={1000}
             format={(v) => `₹${v.toLocaleString('en-IN')}`}
           />
         </div>
 
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <ResultCard label="Estimated EMI" value={`₹${emi.toLocaleString('en-IN')}`} />
+        {/* Right Metrics & Charts */}
+        <div className="space-y-4 lg:col-span-6">
+          {/* Result Cards Grid */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <ResultCard label="New Loan EMI" value={`₹${emi.toLocaleString('en-IN')}`} />
             <ResultCard label="Total Interest" value={`₹${totalInterest.toLocaleString('en-IN')}`} />
-            <ResultCard label="Debt-to-Income" value={`${dti}%`} />
-            <ResultCard label="Affordability" value={affordability} valueClass={AFFORDABILITY_COLOR[affordability]} />
+            <ResultCard label="Total DTI" value={`${dti}%`} />
+            <ResultCard label="Affordability" value={affordability} />
           </div>
 
-          <div className="rounded-2xl border-2 border-brand-blue-light bg-white p-4">
-            <p className="mb-2 text-sm font-semibold text-brand-ink">Cash Flow</p>
-            <BarChart width={340} height={200} data={cashFlowData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={11} />
-              <YAxis fontSize={11} />
-              <Tooltip />
-              <Bar dataKey="value" fill="#007bff" radius={[4, 4, 0, 0]} />
-            </BarChart>
+          {/* Cash Flow Distribution Chart */}
+          <div className="rounded-3xl border border-[#e3edf7] bg-white p-5 shadow-xs">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#002970]">Cash Flow Breakdown</p>
+            <div className="h-44 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={cashFlowData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f5fa" />
+                  <XAxis dataKey="name" fontSize={11} stroke="#64748b" />
+                  <YAxis fontSize={11} stroke="#64748b" />
+                  <Tooltip formatter={(val) => `₹${Number(val).toLocaleString('en-IN')}`} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                    {cashFlowData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          <div className="rounded-2xl border-2 border-brand-blue-light bg-white p-4">
-            <p className="mb-2 text-sm font-semibold text-brand-ink">Principal vs Interest</p>
-            <PieChart width={340} height={200}>
-              <Pie data={principalVsInterest} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80}>
-                {principalVsInterest.map((entry) => (
-                  <Cell key={entry.name} fill={entry.fill} />
-                ))}
-              </Pie>
-              <Legend />
-              <Tooltip />
-            </PieChart>
+          {/* Principal vs Interest Pie Chart */}
+          <div className="rounded-3xl border border-[#e3edf7] bg-white p-5 shadow-xs">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#002970]">Principal vs Interest Split</p>
+            <div className="h-44 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={principalVsInterest} dataKey="value" nameKey="name" innerRadius={45} outerRadius={70}>
+                    {principalVsInterest.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Legend verticalAlign="bottom" height={36} />
+                  <Tooltip formatter={(val) => `₹${Number(val).toLocaleString('en-IN')}`} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {prepayment > 0 && (
-            <p className="text-sm text-brand-ink/70">
-              With an extra ₹{prepayment.toLocaleString('en-IN')}/month, you could close this loan in
-              roughly {effectiveTenure} months instead of {tenure}.
-            </p>
+            <div className="rounded-2xl border border-emerald-200 bg-[#e8f9f1] p-3.5 text-xs font-semibold text-emerald-950">
+              With ₹{prepayment.toLocaleString('en-IN')}/mo extra prepayment, you close this loan in roughly{' '}
+              <strong>{effectiveTenure} months</strong> instead of {tenure} months!
+            </div>
           )}
         </div>
       </div>
-    </main>
+    </motion.main>
   )
 }
 
-function ResultCard({ label, value, valueClass = 'text-brand-blue-dark' }) {
+function ResultCard({ label, value }) {
   return (
-    <div className="rounded-2xl border-2 border-brand-blue-light bg-white p-3 text-center">
-      <p className="text-xs uppercase tracking-wide text-brand-ink/50">{label}</p>
-      <p className={`mt-1 text-lg font-bold ${valueClass}`}>{value}</p>
-    </div>
+    <motion.div
+      whileHover={{ y: -3, scale: 1.02 }}
+      className="rounded-2xl border border-[#e3edf7] bg-white p-3.5 text-center shadow-xs transition-all hover:border-[#00baf2]/40 hover:shadow-sm"
+    >
+      <p className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">{label}</p>
+      <p className="mt-1 text-base font-black text-[#002970]">{value}</p>
+    </motion.div>
   )
 }

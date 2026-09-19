@@ -1,6 +1,7 @@
-import { AlertTriangle, Upload } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, Bot, Upload } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, Tooltip, XAxis, YAxis } from 'recharts'
+import { motion } from 'framer-motion'
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { usePageContext } from '../App'
 import { useFinLensConversation } from '../hooks/useFinLensConversation'
 
@@ -15,7 +16,7 @@ const CATEGORY_KEYWORDS = {
   Healthcare: ['pharmacy', 'hospital', 'clinic', 'medical', 'health'],
   Investments: ['mutual fund', 'sip', 'stocks', 'investment', 'zerodha', 'groww'],
 }
-const CATEGORY_COLORS = ['#002970', '#007bff', '#00baf2', '#16a34a', '#f59e0b', '#dc2626', '#6366f1', '#0ea5e9', '#84cc16']
+const CATEGORY_COLORS = ['#002970', '#0041a8', '#00baf2', '#00b368', '#f59e0b', '#e01a59', '#7b2cbf', '#0ea5e9', '#10b981']
 
 function categorize(description) {
   const lower = description.toLowerCase()
@@ -25,13 +26,6 @@ function categorize(description) {
   return 'Other'
 }
 
-/**
- * Supports the two common bank-export shapes:
- * 1. date, description, amount        (signed: negative = debit/expense)
- * 2. date, description, amount, type  (type: Cr/Credit = income, Dr/Debit = expense)
- * Column 4 is optional - if present, it overrides the sign convention,
- * since some exports give all-positive amounts with a separate type column.
- */
 function parseCsv(text) {
   const lines = text.split(/\r?\n/).filter((line) => line.trim())
   const rows = lines.slice(1).map((line) => {
@@ -84,10 +78,10 @@ export default function Transactions() {
         if (rows.length === 0) throw new Error('empty')
         setTransactions(rows)
       } catch {
-        setError('We could not extract readable text. Please upload a clearer document.')
+        setError('Unable to parse CSV structure. Ensure headers include Date, Description, and Amount.')
       }
     }
-    reader.onerror = () => setError('Unable to process this document. Please try another file.')
+    reader.onerror = () => setError('Unable to process this file. Please try again.')
     reader.readAsText(file)
   }
 
@@ -100,97 +94,133 @@ export default function Transactions() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
+    <motion.main
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-5 px-4 py-6"
+    >
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Transaction Analysis</h1>
-        <p className="text-brand-ink/60">Upload a bank statement CSV (date, description, amount) to see where your money goes.</p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-black text-[#002970]">Paytm Statement &amp; Transaction Analytics</h1>
+          <span className="rounded-full bg-[#f0f7fd] px-2.5 py-0.5 text-xs font-bold text-[#002970]">
+            Cash Flow Engine
+          </span>
+        </div>
+        <p className="mt-1 text-xs font-medium text-[#64748b]">
+          Upload bank statement CSV files to analyze spending categories, recurring debits, and surplus velocity.
+        </p>
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 rounded-xl bg-red-50 p-3 text-red-800" role="alert">
-          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
-          <p className="text-base">{error}</p>
+        <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800" role="alert">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
+          <p className="text-xs font-semibold">{error}</p>
         </div>
       )}
 
-      <button
+      <motion.button
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-blue-dark/40 bg-white p-6 text-brand-ink hover:border-brand-blue"
+        className="group flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-[#00baf2]/40 bg-white p-8 text-center transition-all hover:border-[#00baf2] hover:bg-[#f0f7fd]"
       >
-        <Upload className="h-5 w-5" aria-hidden="true" />
-        Upload Transaction CSV
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002970] to-[#00baf2] text-white shadow-md">
+          <Upload className="h-6 w-6" aria-hidden="true" />
+        </div>
+        <div>
+          <p className="text-base font-black text-[#002970]">Upload Bank Statement CSV</p>
+          <p className="text-xs text-[#64748b]">Supports standard 3-column and 4-column bank exports</p>
+        </div>
         <input ref={inputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
-      </button>
+      </motion.button>
 
       {transactions.length > 0 && (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard label="Income Credits" value={summary.income} tone="success" />
-            <StatCard label="Total Expenses" value={summary.expenses} tone="warning" />
-            <StatCard label="Large Transactions" value={summary.large.length} isCount />
-            <StatCard label="Recurring Payments" value={summary.recurring.length} isCount />
+            <StatCard label="Total Outflows" value={summary.expenses} tone="warning" />
+            <StatCard label="Large Debits" value={summary.large.length} isCount />
+            <StatCard label="Recurring Charges" value={summary.recurring.length} isCount />
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border-2 border-brand-blue-light bg-white p-4">
-              <p className="mb-2 text-sm font-semibold text-brand-ink">Category-wise Expenses</p>
-              <PieChart width={320} height={220}>
-                <Pie data={summary.categoryData} dataKey="value" nameKey="name" outerRadius={80} label>
-                  {summary.categoryData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
+            <div className="paytm-card rounded-3xl p-5">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-[#002970]">Category Breakdown</p>
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={summary.categoryData} dataKey="value" nameKey="name" outerRadius={75} label>
+                      {summary.categoryData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(val) => `₹${Number(val).toLocaleString('en-IN')}`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <div className="rounded-2xl border-2 border-brand-blue-light bg-white p-4">
-              <p className="mb-2 text-sm font-semibold text-brand-ink">Monthly Spending Breakdown</p>
-              <BarChart width={320} height={220} data={summary.categoryData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" fontSize={10} />
-                <YAxis fontSize={10} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#007bff" radius={[4, 4, 0, 0]} />
-              </BarChart>
+
+            <div className="paytm-card rounded-3xl p-5">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-[#002970]">Monthly Spending by Category</p>
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={summary.categoryData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f5fa" />
+                    <XAxis dataKey="name" fontSize={10} stroke="#64748b" />
+                    <YAxis fontSize={10} stroke="#64748b" />
+                    <Tooltip formatter={(val) => `₹${Number(val).toLocaleString('en-IN')}`} />
+                    <Bar dataKey="value" fill="#002970" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             type="button"
             onClick={handleAskAi}
             disabled={conversation.status === 'thinking'}
-            className="self-start rounded-lg bg-brand-blue-dark px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#002970] to-[#0041a8] px-5 py-2.5 text-xs font-extrabold text-white shadow-md disabled:opacity-60"
           >
-            Ask AI About My Spending
-          </button>
+            <Bot className="h-4 w-4 text-[#00baf2]" />
+            <span>Ask Paytm AI About Spending Optimization</span>
+          </motion.button>
 
           {conversation.messages.length > 0 && (
-            <div className="space-y-2 rounded-2xl border-2 border-brand-blue-light bg-white p-4">
+            <div className="space-y-3 rounded-3xl border border-[#e3edf7] bg-white p-5 shadow-xs">
               {conversation.messages.map((message) => (
-                <p
-                  key={message.id}
-                  className={message.role === 'user' ? 'font-medium text-brand-ink' : 'text-brand-ink/80'}
+                <div
+                  key={message.id || message.content}
+                  className={`rounded-2xl p-3 text-xs leading-relaxed ${
+                    message.role === 'user' ? 'bg-[#f0f7fd] font-bold text-[#002970]' : 'bg-[#f8fbfe] text-[#334155]'
+                  }`}
                 >
                   {message.content}
-                </p>
+                </div>
               ))}
             </div>
           )}
         </>
       )}
-    </main>
+    </motion.main>
   )
 }
 
 function StatCard({ label, value, tone, isCount }) {
-  const toneClass = tone === 'success' ? 'text-brand-green' : tone === 'warning' ? 'text-amber-600' : 'text-brand-blue-dark'
+  const toneClass = tone === 'success' ? 'text-[#00b368]' : tone === 'warning' ? 'text-[#f59e0b]' : 'text-[#002970]'
   return (
-    <div className="rounded-2xl border-2 border-brand-blue-light bg-white p-4 text-center">
-      <p className="text-xs uppercase tracking-wide text-brand-ink/50">{label}</p>
-      <p className={`mt-1 text-lg font-bold ${toneClass}`}>
+    <motion.div
+      whileHover={{ y: -3, scale: 1.02 }}
+      className="rounded-2xl border border-[#e3edf7] bg-white p-4 text-center shadow-xs transition-all hover:border-[#00baf2]/40"
+    >
+      <p className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">{label}</p>
+      <p className={`mt-1.5 text-lg font-black ${toneClass}`}>
         {isCount ? value : `₹${Math.round(value).toLocaleString('en-IN')}`}
       </p>
-    </div>
+    </motion.div>
   )
 }
