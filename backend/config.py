@@ -22,10 +22,20 @@ class Settings(BaseSettings):
     cognee_embedding_model: str = "gemini-embedding-001"
     cognee_data_path: str = "data/cognee_storage"
 
-    # Convai 3D Conversational Avatar Experience ID
+    # Convai 3D Conversational Avatar Configuration
     convai_experience_id: str = ""
+    convai_character_id: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def resolved_convai_character_id(self) -> str:
+        import os
+        return (
+            self.convai_character_id
+            or os.getenv("CONVAI_CHARACTER_ID", "")
+            or os.getenv("VITE_CONVAI_CHARACTER_ID", "")
+        ).strip()
 
     @property
     def resolved_convai_experience_id(self) -> str:
@@ -34,6 +44,7 @@ class Settings(BaseSettings):
             self.convai_experience_id
             or os.getenv("CONVAI_EXPERIENCE_ID", "")
             or os.getenv("VITE_CONVAI_EXPERIENCE_ID", "")
+            or self.resolved_convai_character_id
         ).strip()
 
     @property
