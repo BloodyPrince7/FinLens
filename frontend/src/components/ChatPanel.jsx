@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Bot, Send, Sparkles, Square, Volume2, VolumeX } from 'lucide-react'
+import { Bot, Mic, MicOff, Send, Sparkles, Square, Volume2, VolumeX } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import MessageBubble from './MessageBubble'
 
@@ -18,6 +18,9 @@ export default function ChatPanel({
   onStopSpeaking,
   isVoiceOutputEnabled,
   onToggleVoiceOutput,
+  onToggleMic,
+  isMicActive = false,
+  isMicSupported = true,
 }) {
   const [draft, setDraft] = useState('')
   const scrollRef = useRef(null)
@@ -140,21 +143,86 @@ export default function ChatPanel({
 
       {/* Input bar */}
       <form onSubmit={handleSubmit} className="border-t border-[#e3edf7] p-4">
+        {/* Active Listening Soundwave Banner */}
+        {isMicActive && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mb-2.5 flex items-center justify-between rounded-2xl border border-[#e01a59]/30 bg-gradient-to-r from-rose-50 to-[#fff1f5] px-4 py-2.5 shadow-xs"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e01a59] opacity-75" />
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-[#e01a59]" />
+              </span>
+              <div className="flex items-center gap-1.5 text-xs font-black text-[#e01a59]">
+                <span>Listening to your voice...</span>
+                <div className="flex items-center gap-0.5 ml-1">
+                  <span className="h-3 w-1 rounded-full bg-[#e01a59] animate-pulse" />
+                  <span className="h-4 w-1 rounded-full bg-[#e01a59] animate-pulse [animation-delay:0.2s]" />
+                  <span className="h-2 w-1 rounded-full bg-[#e01a59] animate-pulse [animation-delay:0.4s]" />
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onToggleMic}
+              className="rounded-lg bg-white/90 px-2.5 py-1 text-xs font-bold text-[#e01a59] shadow-xs transition-all hover:bg-white"
+            >
+              Cancel
+            </button>
+          </motion.div>
+        )}
+
         <div className="flex items-center gap-2">
           <input
             type="text"
             value={draft}
             onChange={handleInputChange}
-            placeholder="Type your financial question (English or हिंदी)..."
-            disabled={disabled}
-            className="flex-1 rounded-2xl border border-[#e3edf7] bg-[#f8fbfe] px-4 py-3 text-sm font-medium text-[#0f172a] transition-all focus:border-[#00baf2] focus:bg-white focus:outline-none focus:ring-3 focus:ring-[#00baf2]/20 disabled:opacity-50"
+            placeholder={
+              isMicActive
+                ? '🎙️ Listening... Speak your question now'
+                : 'Type your financial question (English or हिंदी)...'
+            }
+            disabled={disabled || isMicActive}
+            className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-medium text-[#0f172a] transition-all focus:outline-none focus:ring-3 ${
+              isMicActive
+                ? 'border-[#e01a59] bg-rose-50/50 text-[#e01a59] placeholder-[#e01a59] ring-2 ring-[#e01a59]/20'
+                : 'border-[#e3edf7] bg-[#f8fbfe] focus:border-[#00baf2] focus:bg-white focus:ring-[#00baf2]/20'
+            } disabled:opacity-50`}
           />
+
+          {/* Ask in Voice Button */}
+          {onToggleMic && isMicSupported && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button"
+              disabled={disabled}
+              onClick={onToggleMic}
+              title={isMicActive ? 'Click to stop listening' : 'Ask with Voice (English or हिंदी)'}
+              aria-label={isMicActive ? 'Stop voice recording' : 'Ask with Voice'}
+              className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-all shadow-xs ${
+                isMicActive
+                  ? 'bg-[#e01a59] text-white shadow-md shadow-[#e01a59]/30 ring-4 ring-[#e01a59]/20 animate-pulse'
+                  : 'border border-[#e3edf7] bg-[#f0f7fd] text-[#002970] hover:border-[#00baf2] hover:bg-white hover:text-[#00baf2]'
+              } disabled:opacity-40`}
+            >
+              {isMicActive ? (
+                <MicOff className="h-5 w-5 animate-bounce" />
+              ) : (
+                <Mic className="h-5 w-5 text-[#00baf2]" />
+              )}
+            </motion.button>
+          )}
+
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             type="submit"
-            disabled={disabled || !draft.trim()}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-r from-[#002970] to-[#0041a8] text-white shadow-md shadow-[#002970]/20 transition-all hover:shadow-lg disabled:opacity-40"
+            disabled={disabled || !draft.trim() || isMicActive}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-r from-[#002970] to-[#0041a8] text-white shadow-md shadow-[#002970]/20 transition-all hover:shadow-lg disabled:opacity-40"
             aria-label="Send message"
           >
             <Send className="h-4 w-4" />

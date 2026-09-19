@@ -254,6 +254,9 @@ export default function Dashboard() {
           onStopSpeaking={conversation.stopSpeaking}
           isVoiceOutputEnabled={conversation.isVoiceOutputEnabled}
           onToggleVoiceOutput={conversation.setVoiceOutputEnabled}
+          onToggleMic={conversation.toggleMic}
+          isMicActive={conversation.isMicActive}
+          isMicSupported={conversation.isMicSupported}
         />
       </motion.section>
 
