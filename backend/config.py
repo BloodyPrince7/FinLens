@@ -6,7 +6,35 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.6-flash"
     frontend_url: str = "http://localhost:5173"
 
+    # Cognee - AI memory/knowledge-graph layer for cross-document financial retrieval.
+    # cognee_mode="local" (default) keeps everything on this machine, reusing
+    # the Gemini key/provider above so no second API key is required.
+    # cognee_mode="cloud" instead connects to a Cognee Cloud tenant - an
+    # explicit opt-in to an external service, using COGNEE_CLOUD_URL + the
+    # same COGNEE_API_KEY for auth.
+    cognee_enabled: bool = True
+    cognee_mode: str = "local"
+    cognee_cloud_url: str = ""
+    cognee_api_key: str = ""
+    cognee_llm_provider: str = "gemini"
+    cognee_llm_model: str = "gemini-3.5-flash-lite"
+    cognee_embedding_provider: str = "gemini"
+    cognee_embedding_model: str = "gemini-embedding-001"
+    cognee_embedding_dimensions: int = 3072
+    cognee_data_path: str = "data/cognee_storage"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def cognee_llm_api_key(self) -> str:
+        """The default "gemini" provider always uses the proven-working
+        GEMINI_API_KEY, regardless of whether COGNEE_API_KEY is also set - the
+        pasted COGNEE_API_KEY didn't match a recognized Gemini key format and
+        broke authentication when it took precedence. COGNEE_API_KEY only
+        applies once COGNEE_LLM_PROVIDER is changed to a different provider."""
+        if self.cognee_llm_provider == "gemini":
+            return self.gemini_api_key
+        return self.cognee_api_key or self.gemini_api_key
 
     @property
     def cors_origins(self) -> list[str]:

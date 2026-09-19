@@ -98,6 +98,19 @@ export async function getDocument(documentId) {
   return parseJsonOrThrow(response, 'Document not found.')
 }
 
+/** Lists every document the current user has uploaded, optionally filtered by document type. */
+export async function listDocuments(documentType) {
+  const url = new URL(`${API_BASE_URL}/api/documents`)
+  if (documentType && documentType !== 'all') url.searchParams.append('document_type', documentType)
+  const response = await authenticatedFetch(url.toString())
+  return parseJsonOrThrow(response, 'Unable to load your documents.')
+}
+
+export async function deleteDocument(documentId) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/documents/${documentId}`, { method: 'DELETE' })
+  return parseJsonOrThrow(response, 'Unable to delete this document.')
+}
+
 /** Generates a structured Hindi explanation and speech audio script for a document. */
 export async function getHindiDocumentExplanation(documentId, model) {
   const url = new URL(`${API_BASE_URL}/api/documents/${documentId}/hindi-explanation`)

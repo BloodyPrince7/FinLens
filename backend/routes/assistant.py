@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from models.db import User
 from models.schemas import AssistantChatRequest, AssistantChatResponse
 from services import gemini_service
+from services.cognee_service import cognee_service
 from services.security import get_current_user
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
@@ -21,10 +22,24 @@ async def chat(payload: AssistantChatRequest, user: User = Depends(get_current_u
         if payload.language == "hi"
         else "Respond only in simple English."
     )
+
+    # Cognee retrieval is additive: it only ever adds a "Financial memory"
+    # section on top of the existing profile-derived dynamic_context. If
+    # Cognee has nothing relevant or is unavailable, get_financial_context()
+    # returns None and chat proceeds exactly as it did before this existed.
+    memory_context = await cognee_service.get_financial_context(user.id, payload.question)
+    memory_section = (
+        f"\n\nFinancial memory (retrieved from this user's uploaded documents, "
+        f"may span multiple documents):\n{memory_context.context_text}"
+        if memory_context
+        else ""
+    )
+
     prompt = (
         f"{SAFETY_INSTRUCTION}\n\n{language_instruction}\n\n"
         f"Authenticated user: {user.name}\n\n"
-        f"Financial context:\n{payload.dynamic_context or 'No additional context provided.'}\n\n"
+        f"Financial context:\n{payload.dynamic_context or 'No additional context provided.'}"
+        f"{memory_section}\n\n"
         f"User question:\n{payload.question.strip()}"
     )
     try:

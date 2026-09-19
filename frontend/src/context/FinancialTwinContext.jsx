@@ -16,7 +16,6 @@ const DEFAULT_TWIN = {
   employmentType: 'Salaried',
   loans: [],
   insurancePolicies: [],
-  savedDocuments: [],
   monthlyInsurancePremiums: 0,
 }
 

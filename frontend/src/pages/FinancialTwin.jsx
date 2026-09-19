@@ -1,4 +1,6 @@
-import { Download, FileText, ShieldCheck, WalletCards } from 'lucide-react'
+import { Download, ShieldCheck, WalletCards } from 'lucide-react'
+import { usePageContext } from '../App'
+import DocumentHistory from '../components/DocumentHistory'
 import { useFinancialTwin } from '../context/FinancialTwinContext'
 import { calculateHealthScore, downloadDocument } from '../services/financeService'
 
@@ -11,6 +13,7 @@ const NUMBER_FIELDS = [
 ]
 
 export default function FinancialTwin() {
+  const { geminiModel } = usePageContext()
   const { twin, updateTwin, monthlySurplus, isProfileLoading, profileError } = useFinancialTwin()
   const health = calculateHealthScore({
     monthlyIncome: twin.monthlyIncome,
@@ -119,14 +122,14 @@ export default function FinancialTwin() {
         emptyText="Insurance policies you save after upload will appear here."
         items={twin.insurancePolicies || []}
       />
-      {(twin.savedDocuments || []).length > 0 && (
-        <ProfileCollection
-          icon={FileText}
-          title="Other Documents"
-          emptyText=""
-          items={twin.savedDocuments}
-        />
-      )}
+
+      <section className="rounded-2xl border-2 border-brand-blue-light bg-white p-5">
+        <div className="mb-3">
+          <h2 className="font-semibold text-brand-ink">My Documents</h2>
+          <p className="text-xs text-brand-ink/50">Every financial document you've uploaded, of every type.</p>
+        </div>
+        <DocumentHistory geminiModel={geminiModel} />
+      </section>
     </main>
   )
 }

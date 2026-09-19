@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Literal, Optional
 from pydantic import BaseModel, EmailStr, Field
 
@@ -78,6 +79,9 @@ class DocumentUploadResponse(BaseModel):
     risks: list[str]
 
 
+MemoryStatus = Literal["pending", "added", "failed", "disabled"]
+
+
 class DocumentOut(BaseModel):
     id: str
     filename: str
@@ -86,6 +90,27 @@ class DocumentOut(BaseModel):
     fields: dict
     risks: list[str]
     extracted_text: str
+    memory_status: MemoryStatus
+    memory_error: Optional[str] = None
+
+
+class DocumentSummaryOut(BaseModel):
+    id: str
+    filename: str
+    document_type: DocumentType
+    summary: str
+    processing_status: Literal["uploaded", "analyzed"]
+    has_file: bool
+    content_type: Optional[str] = None
+    file_size: Optional[int] = None
+    created_at: datetime
+    risks_count: int
+    memory_status: MemoryStatus
+
+
+class DocumentListResponse(BaseModel):
+    success: bool
+    documents: list[DocumentSummaryOut]
 
 
 class HindiExplanationResponse(BaseModel):

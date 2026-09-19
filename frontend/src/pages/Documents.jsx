@@ -7,17 +7,21 @@ import {
   FileWarning,
   FolderPlus,
   Headphones,
+  History,
   Languages,
   Loader2,
   ShieldCheck,
   Square,
+  Upload,
   Volume2,
   WalletCards,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePageContext } from '../App'
+import DocumentHistory from '../components/DocumentHistory'
 import ImageUploader from '../components/ImageUploader'
+import { DOCUMENT_TYPES } from '../constants/documentTypes'
 import {
   analyzeDocument,
   downloadDocument,
@@ -26,16 +30,6 @@ import {
 } from '../services/financeService'
 import { isSpeechSynthesisSupported, speak, stopSpeaking } from '../services/speechService'
 import { useFinancialTwin } from '../context/FinancialTwinContext'
-
-const DOCUMENT_TYPES = [
-  { value: 'itr', label: 'Income Tax Return (ITR)' },
-  { value: 'bank_statement', label: 'Bank Statement' },
-  { value: 'salary_slip', label: 'Salary Slip' },
-  { value: 'loan_agreement', label: 'Loan Agreement' },
-  { value: 'insurance_policy', label: 'Insurance Policy' },
-  { value: 'investment_statement', label: 'Investment Statement' },
-  { value: 'credit_report', label: 'Credit Report' },
-]
 
 const STAGE_LABELS = {
   uploading: 'Uploading document...',
@@ -48,6 +42,7 @@ export default function Documents() {
   const navigate = useNavigate()
   const { saveAssetToProfile } = useFinancialTwin()
 
+  const [activeTab, setActiveTab] = useState('upload')
   const [documentType, setDocumentType] = useState('bank_statement')
   const [image, setImage] = useState(null)
   const [stage, setStage] = useState(null)
@@ -158,7 +153,7 @@ export default function Documents() {
       savedAt: new Date().toISOString(),
     }
     if (!['loan_agreement', 'insurance_policy'].includes(documentType)) {
-      setError('Only loan agreements and insurance policies can be added to the structured profile right now.')
+      setError('This document is already saved in My Documents. Only loans and insurance policies feed into the Financial Twin totals.')
       return
     }
     setIsSaving(true)
@@ -203,13 +198,40 @@ export default function Documents() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 px-4 py-6">
       <div>
-        <h1 className="text-2xl font-bold text-brand-ink">Upload Your Financial Documents</h1>
+        <h1 className="text-2xl font-bold text-brand-ink">Your Financial Documents</h1>
         <p className="text-brand-ink/60">
           Upload ITR, bank statements, loan agreements, or financial documents to receive personalized
-          insights.
+          insights. Every document you upload is saved to My Documents automatically.
         </p>
       </div>
 
+      <div className="flex w-fit gap-1 rounded-2xl bg-brand-beige p-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('upload')}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === 'upload' ? 'bg-white text-brand-blue-dark shadow-sm' : 'text-brand-ink/60 hover:text-brand-ink'
+          }`}
+        >
+          <Upload className="h-4 w-4" aria-hidden="true" />
+          Upload
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+            activeTab === 'history' ? 'bg-white text-brand-blue-dark shadow-sm' : 'text-brand-ink/60 hover:text-brand-ink'
+          }`}
+        >
+          <History className="h-4 w-4" aria-hidden="true" />
+          My Documents
+        </button>
+      </div>
+
+      {activeTab === 'history' && <DocumentHistory geminiModel={geminiModel} />}
+
+      {activeTab === 'upload' && (
+        <>
       <div className="rounded-2xl border-2 border-brand-blue-light bg-white p-4">
         <label className="mb-2 block text-sm font-semibold text-brand-ink">Document type</label>
         <select
@@ -436,8 +458,19 @@ export default function Documents() {
           </div>
 
           <div className="border-t border-brand-blue-light pt-4">
+            <div className="mb-3 flex items-start gap-2 rounded-lg bg-brand-green-light/60 p-2.5 text-sm text-brand-ink/80">
+              <FolderPlus className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-green" aria-hidden="true" />
+              <span>
+                This document has been saved to{' '}
+                <button type="button" onClick={() => setActiveTab('history')} className="font-semibold text-brand-blue-dark underline">
+                  My Documents
+                </button>
+                {' '}and is being added to your Sahayak financial memory in the background, so Sahayak can connect it
+                with your other documents when you ask questions.
+              </span>
+            </div>
             <div className="mb-3">
-              <h3 className="font-semibold text-brand-ink">What would you like to do?</h3>
+              <h3 className="font-semibold text-brand-ink">What would you like to do next?</h3>
               <p className="text-sm text-brand-ink/60">Choose where this document should go next.</p>
             </div>
             <div className={`grid gap-3 ${canSaveToProfile ? 'sm:grid-cols-2' : ''}`}>
@@ -445,9 +478,9 @@ export default function Documents() {
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-blue-dark">
                   <ProfileIcon className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <h4 className="font-semibold text-brand-ink">Save to my {profileDestination}</h4>
+                <h4 className="font-semibold text-brand-ink">Add to my {profileDestination}</h4>
                 <p className="mt-1 flex-1 text-sm text-brand-ink/60">
-                  Keep these extracted details in your Financial Twin for future comparisons and advice.
+                  Also fold these figures into your Financial Twin's EMI/premium totals for future comparisons and advice.
                 </p>
                 <button
                   type="button"
@@ -456,7 +489,7 @@ export default function Documents() {
                   className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-brand-blue-dark ring-1 ring-brand-blue-dark/20 hover:bg-brand-blue-light disabled:text-brand-green"
                 >
                   {savedToProfile ? <Check className="h-4 w-4" /> : <FolderPlus className="h-4 w-4" />}
-                  {savedToProfile ? `Saved to ${profileDestination}` : isSaving ? 'Saving...' : `Save to ${profileDestination}`}
+                  {savedToProfile ? `Added to ${profileDestination}` : isSaving ? 'Saving...' : `Add to ${profileDestination}`}
                 </button>
               </div>}
 
@@ -480,6 +513,8 @@ export default function Documents() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </main>
   )

@@ -13,3 +13,6 @@ uploads/*
 
 # Local SQLite database
 data/finlens.db
+
+# Cognee's local vector/graph/relational storage
+data/cognee_storage/
