@@ -80,7 +80,7 @@ Experience FinLens AI instantly without creating an account:
 
 ### 7. 👤 3D Conversational Avatar Advisor (Convai) & AI Chatbot
 - **Live 3D AI Financial Advisor:** Engage in voice-first interactive financial consultations with a responsive 3D avatar powered by **Convai Web SDK**.
-- **Dynamic Character Configuration:** Easily switch or customize Convai Character / Experience IDs on the fly in the UI without redeploying code.
+- **Backend-Managed Experience Configuration:** The 3D character is powered seamlessly via `GET /api/convai/config` and backend environment settings (`CONVAI_EXPERIENCE_ID`), eliminating manual ID entry in the client.
 - **AI Financial Assistant:** Multilingual chatbot powered by Google Gemini with strict guardrail prompts, contextual profile awareness, and Cognee cross-document memory retrieval.
 
 ### 8. ⚡ Multi-Model Gemini Engine (Gemini 3.8 / 3.6 / 3.5)
@@ -283,6 +283,7 @@ FinLens/
 │   │   ├── assistant.py                # AI Chat with Cognee memory injection
 │   │   ├── auth.py                     # User authentication & demo seed
 │   │   ├── cognee.py                   # Cognee memory inspection & search
+│   │   ├── convai.py                   # Convai 3D avatar configuration endpoint
 │   │   ├── documents.py                # Upload, analysis, download, Hindi breakdown
 │   │   ├── finance.py                  # EMI calculations & Health Score engine
 │   │   ├── profile.py                  # Financial Twin profile & asset records
@@ -303,6 +304,7 @@ FinLens/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
+│   │   │   ├── DocumentCameraModal.jsx # Live camera document scanner & viewfinder
 │   │   │   ├── DocumentHistory.jsx     # Document repository & status manager
 │   │   │   ├── Header.jsx              # Navigation, Gemini model selector, language toggle
 │   │   │   └── SpeechControls.jsx      # Audio readout player controls
@@ -325,6 +327,7 @@ FinLens/
 │   │   │   └── Transactions.jsx        # Income & expenditure log
 │   │   ├── services/
 │   │   │   ├── apiService.js           # Base HTTP client with JWT interceptor
+│   │   │   ├── convaiService.js        # Convai 3D avatar configuration client
 │   │   │   ├── financeService.js       # Documents, profile & calculation endpoints
 │   │   │   └── geminiModels.js         # Supported Gemini model constants
 │   │   ├── App.jsx                     # Route definitions & layout wrappers
@@ -445,13 +448,14 @@ npm run dev
 | `COGNEE_EMBEDDING_MODEL` | No | `gemini-embedding-001` | Embedding model for semantic vector search |
 | `COGNEE_EMBEDDING_DIMENSIONS` | No | `3072` | Embedding vector dimensions |
 | `COGNEE_DATA_PATH` | No | `data/cognee_storage` | Local directory for Cognee vector and graph storage |
+| `CONVAI_EXPERIENCE_ID` | No | — | Convai 3D avatar Experience ID served to client via `GET /api/convai/config` |
 
 ### Frontend (`frontend/.env`)
 
 | Variable | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
 | `VITE_API_BASE_URL` | No | `http://localhost:8000` | Backend API URL (e.g. `https://finlens-1-7sf7.onrender.com`) |
-| `VITE_CONVAI_EXPERIENCE_ID` | No | — | Default Convai 3D avatar Experience ID *(can also be configured in the UI)* |
+| `VITE_CONVAI_EXPERIENCE_ID` | No | — | Optional fallback Convai Experience ID (auto-queried from backend by default) |
 
 ---
 
