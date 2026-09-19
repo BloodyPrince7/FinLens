@@ -100,82 +100,85 @@ The following sequence details how FinLens processes user inputs, documents, AI 
 ```mermaid
 flowchart TD
     %% Actors
-    User(["👤 User (Browser / Mobile)"])
+    User["👤 User - Browser or Mobile"]
 
     %% Frontend Subsystem
-    subgraph Frontend ["🖥️ Frontend Application (React 18 + Vite)"]
-        UI["Web Interface & Navigation"]
-        TesseractOCR["Client OCR (Tesseract.js)"]
-        DocHistory["Document History & Filter Manager"]
-        TwinUI["Financial Twin & What-If Simulator"]
+    subgraph Frontend ["Frontend Application - React 18 and Vite"]
+        UI["Web Interface and Navigation"]
+        TesseractOCR["Client OCR - Tesseract.js"]
+        DocHistory["Document History and Filter Manager"]
+        TwinUI["Financial Twin and What-If Simulator"]
         AudioPlayer["HTML5 HD Audio Player"]
-        ConvaiWidget["Convai 3D Avatar Web Component"]
+        ConvaiWidget["Convai 3D Avatar Component"]
     end
 
     %% Backend Gateway
-    subgraph BackendGateway ["🚀 Backend API Gateway (FastAPI)"]
-        Router["Path Normalizer & CORS Middleware"]
+    subgraph BackendGateway ["Backend API Gateway - FastAPI"]
+        Router["Path Normalizer and CORS Middleware"]
         AuthService["JWT Bearer Authentication"]
         DocRoutes["Document Management Router"]
-        ProfileRoutes["Financial Profile & Twin Router"]
+        ProfileRoutes["Financial Profile and Twin Router"]
         AssistantRoutes["AI Assistant Chat Router"]
-        SpeechRoutes["Speech & Audio Stream Router"]
+        SpeechRoutes["Speech and Audio Stream Router"]
     end
 
     %% Storage Layer
-    subgraph Storage ["💾 Persistence Layer (SQLite)"]
-        DBUser[(Users & Profiles)]
-        DBDoc[(Document Metadata & Text)]
-        DBBinary[(Original File Binaries)]
-        DBAssets[(Loans & Policies)]
+    subgraph Storage ["Persistence Layer - SQLite"]
+        DBUser[("Users and Profiles DB")]
+        DBDoc[("Document Metadata and Text DB")]
+        DBBinary[("Original File Binaries DB")]
+        DBAssets[("Loans and Policies DB")]
     end
 
     %% Intelligence Layer
-    subgraph IntelligenceLayer ["🧠 AI & Memory Services"]
+    subgraph IntelligenceLayer ["AI and Memory Services"]
         PyMuPDF["PyMuPDF Native Text Parser"]
-        GeminiEngine["Google Gemini 3.8 / 3.6 Multimodal Vision & LLM"]
-        CogneeMem["Cognee Financial Memory (Knowledge Graph + LanceDB)"]
-        GoogleTTS["Google Text-to-Speech Engine (gTTS)"]
+        GeminiEngine["Google Gemini 3.8 and 3.6 Vision and LLM"]
+        CogneeMem["Cognee Financial Memory - Graph and Vectors"]
+        GoogleTTS["Google Text-to-Speech Engine - gTTS"]
         ConvaiCloud["Convai 3D Conversational Cloud"]
     end
 
     %% Ingestion Flow
-    User -->|1. Uploads PDF or Image| UI
-    UI -->|Image: Run Local OCR| TesseractOCR
-    UI -->|PDF: Multipart Upload| DocRoutes
+    User -->|1. Upload PDF or Image| UI
+    UI -->|Local Image OCR| TesseractOCR
+    UI -->|Multipart Upload| DocRoutes
     DocRoutes -->|Native PDF Extraction| PyMuPDF
-    DocRoutes -->|Store Document & File Bytes| DBDoc & DBBinary
+    DocRoutes -->|Store Metadata| DBDoc
+    DocRoutes -->|Store Binary File| DBBinary
 
     %% Analysis Flow
     UI -->|2. Trigger Analysis Request| DocRoutes
-    DocRoutes -->|Analyze Text + File Bytes| GeminiEngine
-    GeminiEngine -->|Structured JSON Fields + Risks| DocRoutes
+    DocRoutes -->|Analyze Text and Binary| GeminiEngine
+    GeminiEngine -->|Structured JSON Fields and Risks| DocRoutes
     DocRoutes -->|Persist Extraction| DBDoc
     DocRoutes -.->|3. Async Background Task| CogneeMem
-    CogneeMem -->|Index Chunks & Build Relationships| CogneeMem
+    CogneeMem -->|Index Chunks and Graph Relations| CogneeMem
 
-    %% Hindi & Audio Flow
+    %% Hindi and Audio Flow
     UI -->|4. Request Hindi Breakdown| DocRoutes
     DocRoutes -->|Devanagari Translation Prompt| GeminiEngine
     DocRoutes --> SpeechRoutes
-    SpeechRoutes -->|Synthesize Natural Voice| GoogleTTS
+    SpeechRoutes -->|Synthesize Voice| GoogleTTS
     GoogleTTS -->|Stream MP3 Audio| AudioPlayer
 
-    %% Twin & Simulation Flow
-    UI -->|5. Save Extracted Loan/Policy| ProfileRoutes
+    %% Twin and Simulation Flow
+    UI -->|5. Save Extracted Loan or Policy| ProfileRoutes
     ProfileRoutes -->|Update Financial Assets| DBAssets
-    ProfileRoutes -->|Recalculate Health Score & DTI| DBUser
-    TwinUI <-->|6. What-If Scenario Simulations| ProfileRoutes
+    ProfileRoutes -->|Recalculate Health Score and DTI| DBUser
+    TwinUI -->|6. What-If Scenario Simulations| ProfileRoutes
+    ProfileRoutes -->|Updated Telemetry| TwinUI
 
-    %% Advisory & Chat Flow
-    UI -->|7. Ask Multi-Document Question| AssistantRoutes
-    AssistantRoutes -->|Retrieve Cross-Doc Context| CogneeMem
-    AssistantRoutes -->|Generate Grounded Advice| GeminiEngine
+    %% Advisory and Chat Flow
+    UI -->|7. Multi-Document Questions| AssistantRoutes
+    AssistantRoutes -->|Retrieve Context Chunks| CogneeMem
+    AssistantRoutes -->|Grounded Advice Generation| GeminiEngine
     GeminiEngine -->|Personalized Guidance| UI
 
     %% Convai Flow
-    User <-->|8. Live 3D Voice Consultation| ConvaiWidget
-    ConvaiWidget <-->|Audio WebRTC / WebSocket| ConvaiCloud
+    User -->|8. Live Voice Consultation| ConvaiWidget
+    ConvaiWidget -->|WebRTC Voice and Lip-Sync| ConvaiCloud
+    ConvaiCloud -->|Audio and Avatar Stream| ConvaiWidget
 ```
 
 ### Detailed Workflow Stages
@@ -239,27 +242,27 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Client["🌐 Client Devices (Desktop & Mobile Browser)<br/>https://www.arvronline.in"]
+    Client["Client Devices - Desktop and Mobile Browser"]
 
-    subgraph FrontendApp ["Frontend Architecture (Vercel)"]
-        ReactUI["React 18 SPA (Vite + Tailwind CSS)"]
+    subgraph FrontendApp ["Frontend Architecture - Vercel"]
+        ReactUI["React 18 SPA - Vite and Tailwind CSS"]
         Context["Financial Twin Context State"]
         ClientOCR["Tesseract.js Optical Engine"]
         ConvaiSDK["Convai 3D Web SDK"]
     end
 
-    subgraph BackendApp ["Backend Cloud Architecture (Render)"]
+    subgraph BackendApp ["Backend Cloud Architecture - Render"]
         FastAPI["FastAPI Application"]
-        Middleware["Path Normalizer & CORS Middleware"]
-        TwinEngine["Financial Math & Scoring Engine"]
-        StorageEngine["Document Binary & Metadata Manager"]
-        SQLite[(SQLite Database)]
+        Middleware["Path Normalizer and CORS Middleware"]
+        TwinEngine["Financial Math and Scoring Engine"]
+        StorageEngine["Document Binary and Metadata Manager"]
+        SQLite[("SQLite Database")]
     end
 
-    subgraph AIAndMemory ["AI & Intelligence Engine"]
-        Gemini["Google Gemini 3.8 / 3.6 / 3.5<br/>(Multimodal Vision & Reasoning)"]
-        Cognee["Cognee Financial Memory<br/>(Knowledge Graph & LanceDB Vectors)"]
-        TTS["Google TTS Streamer (gTTS)"]
+    subgraph AIAndMemory ["AI and Intelligence Engine"]
+        Gemini["Google Gemini 3.8 / 3.6 / 3.5 Models"]
+        Cognee["Cognee Financial Memory - Graph and Vectors"]
+        TTS["Google TTS Audio Streamer"]
     end
 
     subgraph ExternalAdvisory ["3D Conversational Advisory"]
@@ -270,18 +273,19 @@ flowchart TD
     ReactUI --> ClientOCR
     ReactUI --> Context
     ReactUI --> ConvaiSDK
-    ConvaiSDK <-->|Real-Time Voice & Lip-Sync| ConvaiServer
+    ConvaiSDK -->|Real-Time Voice and Lip-Sync| ConvaiServer
+    ConvaiServer -->|Interactive Avatar Stream| ConvaiSDK
 
-    ReactUI -->|REST API / JWT Bearer| FastAPI
+    ReactUI -->|REST API with JWT Bearer| FastAPI
     FastAPI --> Middleware
     FastAPI --> TwinEngine
     FastAPI --> StorageEngine
     StorageEngine --> SQLite
     TwinEngine --> SQLite
 
-    FastAPI -->|Multimodal Extraction & Explanations| Gemini
-    FastAPI -->|Async Knowledge Graph Indexing & Recall| Cognee
-    FastAPI -->|HD Audio Synthesis (MP3 Stream)| TTS
+    FastAPI -->|Multimodal Extraction and Explanations| Gemini
+    FastAPI -->|Async Knowledge Graph and Vectors| Cognee
+    FastAPI -->|HD Audio MP3 Streaming| TTS
 ```
 
 ---
